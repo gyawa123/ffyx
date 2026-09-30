@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>公告</title>
+</head>
+<body>
+<h1>欢迎来到我的网站</h1>
+<script>
+  fetch('notice.txt?t=' + Date.now())
+    .then(res => res.text())
+    .then(text => {
+      if (text.trim()) alert('📢 公告\n\n' + text.trim());
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>
