@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>贪吃蛇大作战 · 单人版</title>
+<style>
+:root{--gold:#f0b040;--danger:#e74c3c;--player:#4da6ff}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:#050508;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;touch-action:manipulation;position:fixed;top:0;left:0;display:flex;justify-content:center;align-items:center}
+
+#bg-layer{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;overflow:hidden;background:#050508}
+#bg-layer iframe{display:block;width:100%;height:100%;border:0;pointer-events:none}
+body.in-game #bg-layer{display:none}
+
+#game-wrapper{position:relative;width:100vw;height:100vh;max-width:1400px;max-height:900px;overflow:hidden;background:#000;z-index:1}
+@media(min-width:1200px){#game-wrapper{border-radius:14px;margin:0 16px}}
+#game-canvas{display:block;width:100%;height:100%;position:absolute;top:0;left:0;z-index:1}
+#ui-layer{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none}
+
+/* ============ 设置页（主页面） ============ */
+#setup-screen{position:absolute;top:0;left:0;width:100%;height:100%;z-index:50;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(5,5,10,.5);backdrop-filter:blur(2px);gap:14px;overflow:hidden;overflow-y:auto;padding:20px 0}
+#setup-screen.hidden{display:none}
+#setup-screen .logo{font-size:2.6rem;font-weight:900;letter-spacing:3px;background:linear-gradient(120deg,#4da6ff 0%,#8be9ff 40%,#f0b040 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:0 0 20px rgba(0,0,0,.5);text-align:center}
+#setup-screen .subtitle{color:#aabbcc;font-size:.78rem;letter-spacing:4px;margin-bottom:14px;text-transform:uppercase;text-shadow:0 0 10px rgba(0,0,0,.8)}
+
+#setup-panel{display:flex;flex-direction:column;align-items:center;gap:10px;background:rgba(0,0,0,.65);padding:20px 34px;border-radius:16px;border:1px solid rgba(77,166,255,.3);pointer-events:auto;backdrop-filter:blur(10px);max-width:min(420px,95vw);position:relative;z-index:2}
+.panel-title{color:#4da6ff;font-size:1rem;font-weight:700;letter-spacing:2px;margin-bottom:4px}
+.setting-row{display:flex;align-items:center;gap:10px;color:#ddd;font-size:.88rem;background:rgba(255,255,255,.05);padding:9px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.1);min-width:240px;cursor:pointer;user-select:none}
+.setting-row input{width:17px;height:17px;cursor:pointer;accent-color:#4da6ff}
+.setting-row.boss{background:rgba(180,60,60,.15);border-color:rgba(255,100,100,.3)}
+.setting-row.boss input{accent-color:#e74c3c}
+.start-btn{margin-top:8px;padding:14px 54px;font-size:1.1rem;font-weight:700;border:none;border-radius:50px;cursor:pointer;letter-spacing:2px;transition:.2s;min-width:240px;text-align:center;background:linear-gradient(135deg,#2ecc71,#1a9a4e);color:#fff;box-shadow:0 4px 18px rgba(46,204,113,.4);pointer-events:auto;position:relative;z-index:2}
+.start-btn:active{transform:scale(.97)}
+.setup-tip{color:#8899aa;font-size:.7rem;text-align:center;margin-top:6px;line-height:1.6}
+
+#top-bar{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;pointer-events:none;z-index:6}
+#top-bar .stat{background:rgba(10,10,20,.75);color:#fff;padding:5px 13px;border-radius:20px;font-size:.76rem;font-weight:600;letter-spacing:1px;white-space:nowrap;border:1px solid rgba(255,255,255,.15)}
+#top-bar .stat.apples{color:#6f6}
+#top-bar .stat.bullets{color:#ffcc44}
+#top-bar .stat.boss-hp{color:#ff6b6b}
+#effect-indicator{position:absolute;top:44px;left:50%;transform:translateX(-50%);display:flex;gap:7px;pointer-events:none;z-index:6;flex-wrap:wrap;justify-content:center}
+.effect-tag{padding:3px 12px;border-radius:14px;font-size:.68rem;font-weight:700;white-space:nowrap}
+.effect-boost{background:rgba(255,150,30,.85);color:#000}
+.effect-shield{background:rgba(80,160,255,.85);color:#000}
+
+#player-badge{position:absolute;top:10px;right:96px;z-index:30;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.65);padding:5px 14px 5px 5px;border-radius:30px;border:1px solid rgba(255,255,255,.2);pointer-events:none}
+#player-badge img{width:34px;height:34px;border-radius:50%;border:2px solid #4da6ff;object-fit:cover;background:#222;display:block}
+#player-badge span{color:#fff;font-size:.82rem;font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+#joystick-container{position:absolute;bottom:36px;left:30px;z-index:20;pointer-events:auto;width:118px;height:118px;touch-action:none}
+#joystick-base{width:100%;height:100%;border-radius:50%;background:rgba(255,255,255,.06);border:3px solid rgba(255,255,255,.22);position:relative}
+#joystick-thumb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.95),rgba(180,200,240,.7));position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 4px 18px rgba(0,0,0,.5);pointer-events:none}
+
+#boost-btn-container{position:absolute;bottom:36px;right:30px;z-index:20;pointer-events:auto;width:108px;height:108px;touch-action:none}
+#boost-btn{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 40% 30%,#ff6b35,#c0392b);border:4px solid rgba(255,150,80,.6);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(200,60,20,.5);color:#fff;font-weight:900;font-size:1rem;text-shadow:0 2px 5px rgba(0,0,0,.5);transition:transform .12s;text-align:center}
+#boost-btn.pressed{transform:scale(.9)}
+#boost-btn .energy-text{display:flex;flex-direction:column;align-items:center}
+#boost-btn .energy-text .label{font-size:.68rem;opacity:.85}
+
+#shoot-btn-container{position:absolute;bottom:158px;right:48px;z-index:20;pointer-events:auto;width:68px;height:68px;touch-action:none;display:none}
+#shoot-btn-container.show{display:block}
+#shoot-btn{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 40% 30%,#ffdd44,#cc8800);border:3px solid rgba(255,220,80,.7);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(200,150,0,.5);color:#000;font-weight:900;font-size:.85rem;transition:transform .12s;text-align:center}
+#shoot-btn.pressed{transform:scale(.9)}
+#shoot-btn .energy-text{display:flex;flex-direction:column;align-items:center}
+#shoot-btn .energy-text .label{font-size:.5rem;opacity:.9}
+
+#gift-btn-container{position:absolute;bottom:200px;left:48px;z-index:20;pointer-events:auto;width:68px;height:68px;touch-action:none;display:none}
+#gift-btn-container.show{display:block}
+#gift-btn{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 40% 30%,#ffb347,#cc7a00);border:3px solid rgba(255,200,100,.7);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(200,130,0,.5);color:#000;font-weight:900;font-size:.85rem;transition:transform .12s;text-align:center}
+#gift-btn.pressed{transform:scale(.9)}
+#gift-btn:disabled{opacity:.45;cursor:not-allowed}
+#gift-btn .energy-text{display:flex;flex-direction:column;align-items:center}
+#gift-btn .energy-text .label{font-size:.5rem;opacity:.9}
+
+#pause-btn{position:absolute;top:10px;right:14px;z-index:30;pointer-events:auto;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 11px;font-size:.88rem;cursor:pointer;transition:.2s}
+#pause-btn:active{transform:scale(.95)}
+
+#pause-modal{position:absolute;top:0;left:0;width:100%;height:100%;z-index:45;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);pointer-events:auto;overflow-y:auto;padding:16px}
+#pause-modal.show{display:flex}
+.pause-card{background:rgba(15,18,30,.95);border-radius:16px;border:1px solid rgba(255,255,255,.15);padding:18px;min-width:min(320px,90vw);max-width:min(460px,95vw);display:flex;flex-direction:column;gap:10px;max-height:90vh;overflow-y:auto}
+.pause-title{color:#fff;font-size:1.3rem;font-weight:800;letter-spacing:2px;text-align:center;margin-bottom:6px}
+.pause-section{background:rgba(0,0,0,.4);border-radius:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.1)}
+.pause-section-title{color:#8899aa;font-size:.72rem;letter-spacing:2px;margin-bottom:6px}
+.pause-info-row{display:flex;justify-content:space-between;color:#ddd;font-size:.85rem;padding:3px 0}
+.pause-info-row .lbl{color:#8899aa}
+.pause-info-row .val{color:#4da6ff;font-weight:700}
+.pause-card .toggle-row{display:flex;align-items:center;gap:8px;color:#ddd;font-size:.82rem;background:rgba(255,255,255,.05);padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.1);cursor:pointer}
+.pause-card .toggle-row input{width:16px;height:16px;cursor:pointer;accent-color:#4da6ff}
+.pause-card button{padding:11px 22px;font-size:.95rem;font-weight:700;border:none;border-radius:50px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:.2s}
+.pause-card button:active{transform:scale(.96)}
+#btn-resume{background:#4da6ff;color:#fff}
+#btn-back-home{background:rgba(255,255,255,.12);color:#ddd;border:1px solid rgba(255,255,255,.25)}
+
+#game-over-modal{position:absolute;top:0;left:0;width:100%;height:100%;z-index:55;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,.82);flex-direction:column;gap:18px;pointer-events:auto;padding:20px}
+#game-over-modal.show{display:flex}
+#game-over-modal .modal-title{font-size:2.2rem;font-weight:900;color:#fff;text-align:center}
+#game-over-modal .modal-sub{color:#ccc;font-size:.95rem;text-align:center;line-height:1.7;white-space:pre-line}
+#game-over-modal .modal-gold{color:#ffd700;font-size:1.3rem;font-weight:800;letter-spacing:2px;text-shadow:0 0 20px rgba(255,215,0,.5);margin:6px 0}
+#game-over-modal .modal-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+#game-over-modal button{padding:13px 34px;font-size:.98rem;font-weight:700;border:none;border-radius:50px;cursor:pointer;font-family:inherit;transition:.2s}
+#game-over-modal button:active{transform:scale(.96)}
+.btn-restart{background:#4da6ff;color:#fff}
+
+@media (orientation: landscape) and (max-height: 560px){
+#setup-screen{gap:6px;padding:10px 0}
+#setup-screen .logo{font-size:1.7rem;letter-spacing:2px}
+#setup-screen .subtitle{font-size:.65rem;margin-bottom:6px;letter-spacing:3px}
+#setup-panel{padding:12px 22px;gap:6px}
+.setting-row{padding:6px 12px;font-size:.78rem;min-width:200px}
+.start-btn{padding:10px 40px;font-size:.92rem;min-width:200px}
+#joystick-container{width:94px;height:94px;bottom:10px;left:14px}
+#joystick-thumb{width:40px;height:40px}
+#boost-btn-container{width:90px;height:90px;bottom:10px;right:14px}
+#boost-btn{font-size:.78rem}
+#shoot-btn-container{width:58px;height:58px;bottom:110px;right:30px}
+#shoot-btn{font-size:.75rem}
+#shoot-btn .energy-text .label{font-size:.45rem}
+#gift-btn-container{width:58px;height:58px;bottom:150px;left:30px}
+#gift-btn{font-size:.75rem}
+#gift-btn .energy-text .label{font-size:.45rem}
+#top-bar{top:5px;gap:7px}
+#top-bar .stat{font-size:.68rem;padding:4px 10px}
+#effect-indicator{top:34px}
+#pause-btn{top:5px;right:10px;font-size:.78rem;padding:5px 9px}
+#player-badge{top:5px;right:58px;padding:3px 10px 3px 3px}
+#player-badge img{width:26px;height:26px}
+#player-badge span{font-size:.72rem;max-width:70px}
+.pause-card{padding:14px}
+.pause-title{font-size:1.1rem}
+}
+</style>
+</head>
+<body>
+<div id="bg-layer"><iframe src="bg.html" scrolling="no" frameborder="0"></iframe></div>
+
+<div id="game-wrapper">
+<canvas id="game-canvas"></canvas>
+
+<!-- ============ 设置页（主页面） ============ -->
+<div id="setup-screen">
+  <div class="logo">贪吃蛇大作战</div>
+  <div class="subtitle">SINGLE PLAYER</div>
+
+  <div id="setup-panel">
+    <div class="panel-title">游 戏 设 置</div>
+
+    <label class="setting-row">
+      <input type="checkbox" id="set-minimap" checked>
+      <span>🗺️ 允许小地图</span>
+    </label>
+
+    <label class="setting-row">
+      <input type="checkbox" id="set-endless">
+      <span>♾️ 无尽模式（无胜利条件）</span>
+    </label>
+
+    <label class="setting-row boss">
+      <input type="checkbox" id="set-boss">
+      <span>👹 Boss 模式（婉芬）</span>
+    </label>
+
+    <button class="start-btn" id="btn-start-game">▶️ 开始游戏</button>
+
+    <div class="setup-tip" id="setup-tip">
+      普通模式：吃满 50 个苹果即胜利 +30💰
+    </div>
+  </div>
+</div>
+
+<!-- ============ 游戏 UI ============ -->
+<div id="ui-layer">
+  <div id="top-bar">
+    <div class="stat apples">🍎 <span id="score-display">0</span> / 50</div>
+    <div class="stat" id="length-display">📏 长度: 5</div>
+    <div class="stat bullets" id="bullet-display" style="display:none;">🔫 子弹: <span id="bullet-count">0</span></div>
+    <div class="stat boss-hp" id="boss-hp-display" style="display:none;">👹 婉芬: <span id="boss-hp">50</span></div>
+  </div>
+  <div id="player-badge">
+    <img id="badge-avatar" src="mo.png" alt="">
+    <span id="badge-name">玩家</span>
+  </div>
+  <div id="effect-indicator"></div>
+</div>
+
+<button id="pause-btn" title="暂停">⏸️</button>
+
+<div id="pause-modal">
+  <div class="pause-card">
+    <div class="pause-title">⏸️ 已暂停</div>
+
+    <div class="pause-section">
+      <div class="pause-section-title">📊 本局数据</div>
+      <div class="pause-info-row"><span class="lbl">🍎 苹果</span><span class="val" id="pause-score">0</span></div>
+      <div class="pause-info-row"><span class="lbl">📏 长度</span><span class="val" id="pause-length">5</span></div>
+      <div class="pause-info-row"><span class="lbl">⏱️ 时长</span><span class="val" id="pause-time">00:00</span></div>
+    </div>
+
+    <label class="toggle-row" id="minimap-toggle-row"><input type="checkbox" id="minimap-checkbox" checked> 🗺️ 显示小地图</label>
+
+    <button id="btn-resume">▶️ 继续游戏</button>
+    <button id="btn-back-home">🏠 返回主页</button>
+  </div>
+</div>
+
+<div id="joystick-container"><div id="joystick-base"><div id="joystick-thumb"></div></div></div>
+<div id="boost-btn-container"><div id="boost-btn"><div class="energy-text"><span style="font-size:1.3rem;">⚡</span><span class="label">加速</span></div></div></div>
+<div id="shoot-btn-container"><div id="shoot-btn"><div class="energy-text"><span style="font-size:1.1rem;">🔫</span><span class="label">发射</span></div></div></div>
+<div id="gift-btn-container"><div id="gift-btn"><div class="energy-text"><span style="font-size:1.1rem;">🎁</span><span class="label">礼包</span></div></div></div>
+
+<div id="game-over-modal">
+  <div class="modal-title" id="modal-title">你死了</div>
+  <div class="modal-sub" id="modal-sub"></div>
+  <div class="modal-gold" id="modal-gold" style="display:none;"></div>
+  <div class="modal-btns">
+    <button class="btn-restart" id="btn-restart">🔄 再来一局</button>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ==================== 头像 fallback ====================
+const DEFAULT_AVATAR='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#2a3a55"/><circle cx="16" cy="13" r="6" fill="#4da6ff"/><path d="M4 30c0-7 5-12 12-12s12 5 12 12z" fill="#4da6ff"/></svg>');
+function safeImgSrc(src){return src&&typeof src==='string'&&src.length>0?src:DEFAULT_AVATAR}
+
+// ==================== DOM ====================
+const canvas=document.getElementById('game-canvas');
+const ctx=canvas.getContext('2d',{alpha:false});
+const wrapper=document.getElementById('game-wrapper');
+const setupScreen=document.getElementById('setup-screen');
+const setupTip=document.getElementById('setup-tip');
+const setMinimap=document.getElementById('set-minimap');
+const setEndless=document.getElementById('set-endless');
+const setBoss=document.getElementById('set-boss');
+const btnStartGame=document.getElementById('btn-start-game');
+
+const scoreDisplay=document.getElementById('score-display'),lengthDisplay=document.getElementById('length-display');
+const bulletDisplay=document.getElementById('bullet-display'),bulletCount=document.getElementById('bullet-count');
+const bossHpDisplay=document.getElementById('boss-hp-display'),bossHpEl=document.getElementById('boss-hp');
+const effectIndicator=document.getElementById('effect-indicator');
+const joystickContainer=document.getElementById('joystick-container'),joystickThumb=document.getElementById('joystick-thumb');
+const boostBtn=document.getElementById('boost-btn'),boostBtnContainer=document.getElementById('boost-btn-container');
+const shootBtn=document.getElementById('shoot-btn'),shootBtnContainer=document.getElementById('shoot-btn-container');
+const giftBtn=document.getElementById('gift-btn'),giftBtnContainer=document.getElementById('gift-btn-container');
+const gameOverModal=document.getElementById('game-over-modal'),modalTitle=document.getElementById('modal-title'),modalSub=document.getElementById('modal-sub'),modalGold=document.getElementById('modal-gold'),btnRestart=document.getElementById('btn-restart');
+const pauseBtn=document.getElementById('pause-btn'),pauseModal=document.getElementById('pause-modal'),btnResume=document.getElementById('btn-resume'),btnBackHome=document.getElementById('btn-back-home');
+const minimapCheckbox=document.getElementById('minimap-checkbox');
+const pauseScore=document.getElementById('pause-score'),pauseLength=document.getElementById('pause-length'),pauseTime=document.getElementById('pause-time');
+const badgeAvatar=document.getElementById('badge-avatar'),badgeName=document.getElementById('badge-name');
+
+// ==================== Boss 图片 ====================
+const bossImg=new Image();
+let bossImgLoaded=false;
+bossImg.onload=function(){bossImgLoaded=true;console.log('Boss 图片 wf.png 加载成功')};
+bossImg.onerror=function(){bossImgLoaded=false;console.log('Boss 图片 wf.png 未找到，使用默认圆球')};
+bossImg.src='wf.png';
+
+// ==================== 音频 ====================
+let audioCtx=null;
+function initAudio(){if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){audioCtx=null}}if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume()}
+function playSound(f,t,d,v){v=v||0.08;if(!audioCtx)return;const now=audioCtx.currentTime;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t;o.frequency.setValueAtTime(f,now);g.gain.setValueAtTime(v,now);g.gain.exponentialRampToValueAtTime(0.001,now+d);o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+d)}
+const sfx={
+  eat:function(){playSound(600,'sine',.12,.06);playSound(900,'sine',.1,.06)},
+  boost:function(){playSound(200,'sawtooth',.3,.04)},
+  shield:function(){playSound(400,'triangle',.25,.06)},
+  death:function(){playSound(80,'sawtooth',.4,.08)},
+  win:function(){playSound(500,'sine',.15,.08);playSound(700,'sine',.12,.08);playSound(900,'sine',.15,.08)},
+  powerUp:function(){playSound(300,'square',.2,.05)},
+  shoot:function(){playSound(700,'square',.08,.05)},
+  hit:function(){playSound(150,'sawtooth',.15,.08)},
+  pickup:function(){playSound(800,'sine',.1,.06)}
+};
+
+// ==================== 常量 ====================
+const WORLD_W=3200,WORLD_H=2200,WALL_THICKNESS=60,SEGMENT_SPACING=14,SNAKE_WIDTH=11,APPLE_RADIUS=10;
+const NORMAL_SPEED=130,BOOST_SPEED_MULT=1.7,POWER_BOOST_MULT=2.2,AI_SPEED=100,TURN_RATE=5.5,AI_TURN_RATE=3.5;
+const TOTAL_APPLES=60,WIN_SCORE=50,POWER_BOOST_DURATION=20,SHIELD_DURATION=10;
+const POWERUP_COUNT_BOOST=4,POWERUP_COUNT_SHIELD=3,RESPAWN_DELAY=0.6;
+const CULL_MARGIN=120,RENDER_FPS=40;
+const BOSS_HP_MAX=50,BOSS_SPEED=85,BOSS_FLEE_SPEED=105,BOSS_RADIUS=32;
+const BOSS_FLEE_HP=5;
+const BULLET_SPEED=520,BULLET_RADIUS=6,BULLET_DAMAGE=1;
+const BULLET_PICKUP_COUNT=10;
+const SHOOT_COOLDOWN=0.15;
+
+// ===== 奖励数值 =====
+const GIFT_APPLE_SINGLE=10;
+const GIFT_GROW_PER_APPLE=2;
+const WIN_GOLD_SINGLE=30;
+const WIN_GOLD_BOSS=100;
+
+// ==================== 玩家信息 ====================
+const playerAvatar=localStorage.getItem('wf_player_avatar')||'mo.png';
+const playerName=localStorage.getItem('wf_player_name')||'玩家';
+
+// ==================== 状态 ====================
+let gameState='setup';  // setup | playing | paused | over
+let player=null,aiSnakes=[],apples=[],powerUps=[];
+let boss=null,bullets=[],bulletPickups=[];
+let camera={x:0,y:0,targetX:0,targetY:0};
+let score=0,gameTime=0,respawnQueue=[];
+let inputDir={x:0,y:0},boostPressed=false,isBoosting=false,powerBoostTimer=0,shieldTimer=0;
+let joystickActive=false,joystickTouchId=null,joystickCenter={x:0,y:0},joystickRadius=0;
+let boostTouchId=null,boostActive=false,keys={};
+let shootCooldown=0;
+let paused=false,showMinimap=true,endlessMode=false;
+let viewW=0,viewH=0;
+let giftCount=parseInt(localStorage.getItem('wf_snake_gift')||'0');
+let singleWinRewarded=false;
+let bossWinRewarded=false;
+
+// 本局设置
+let gameSettings={allowMinimap:true,endlessMode:false,bossMode:false};
+
+// ==================== 工具 ====================
+const dist=function(a,b){return Math.hypot(a.x-b.x,a.y-b.y)};
+const clamp=function(v,mn,mx){return Math.max(mn,Math.min(mx,v))};
+const randRange=function(mn,mx){return mn+Math.random()*(mx-mn)};
+const randInt=function(mn,mx){return Math.floor(randRange(mn,mx+1))};
+const lerp=function(a,b,t){return a+(b-a)*t};
+function worldToScreen(x,y){return {x:(x-camera.x)+viewW/2,y:(y-camera.y)+viewH/2}}
+function isInView(x,y,m){m=m||CULL_MARGIN;return Math.abs(x-camera.x)<viewW/2+m&&Math.abs(y-camera.y)<viewH/2+m}
+
+// 金币系统（共用 wfgold）—— 不在主页面显示，仅在结算时写入
+function getGold(){return parseInt(localStorage.getItem('wfgold')||'500',10)}
+function addGold(amount){const cur=getGold();localStorage.setItem('wfgold',cur+amount)}
+
+// ==================== 蛇类 ====================
+function Snake(x,y,color,isPlayer){
+this.isPlayer=!!isPlayer;this.color=color;this.segments=[];this.dir=randRange(0,Math.PI*2);
+this.speed=this.isPlayer?NORMAL_SPEED:AI_SPEED;this.alive=true;
+const len=this.isPlayer?6:randInt(4,7);
+for(let i=0;i<len;i++)this.segments.push({x:x-Math.cos(this.dir)*SEGMENT_SPACING*i,y:y-Math.sin(this.dir)*SEGMENT_SPACING*i});
+this.pathHistory=[];this.totalPathLen=0;this.name='';
+}
+Object.defineProperty(Snake.prototype,'head',{get:function(){return this.segments[0]}});
+Object.defineProperty(Snake.prototype,'length',{get:function(){return this.segments.length}});
+Object.defineProperty(Snake.prototype,'totalLength',{get:function(){return(this.segments.length-1)*SEGMENT_SPACING}});
+Snake.prototype.steerToward=function(tx,ty,rate){const d=Math.atan2(ty-this.head.y,tx-this.head.x);let diff=d-this.dir;while(diff>Math.PI)diff-=Math.PI*2;while(diff<-Math.PI)diff+=Math.PI*2;this.dir+=clamp(diff,-rate/60,rate/60)};
+Snake.prototype.update=function(dt){
+if(!this.alive)return;
+const move=this.speed*dt;
+const nx=this.head.x+Math.cos(this.dir)*move,ny=this.head.y+Math.sin(this.dir)*move;
+this.pathHistory.unshift({x:this.head.x,y:this.head.y});
+this.totalPathLen+=move;
+const maxLen=this.totalLength+SEGMENT_SPACING*3;
+while(this.totalPathLen>maxLen&&this.pathHistory.length>2){const rem=this.pathHistory.pop();this.totalPathLen-=dist(rem,this.pathHistory[this.pathHistory.length-1])}
+this.segments[0].x=nx;this.segments[0].y=ny;
+let cum=0,idx=0;
+for(let i=1;i<this.segments.length;i++){
+const target=i*SEGMENT_SPACING;
+while(idx<this.pathHistory.length-1&&cum+dist(this.pathHistory[idx],this.pathHistory[idx+1])<target){cum+=dist(this.pathHistory[idx],this.pathHistory[idx+1]);idx++}
+if(idx>=this.pathHistory.length-1){const last=this.pathHistory[this.pathHistory.length-1];this.segments[i].x=last.x;this.segments[i].y=last.y}
+else{const rem=target-cum;const sd=dist(this.pathHistory[idx],this.pathHistory[idx+1]);const t=sd>0?rem/sd:0;this.segments[i].x=lerp(this.pathHistory[idx].x,this.pathHistory[idx+1].x,clamp(t,0,1));this.segments[i].y=lerp(this.pathHistory[idx].y,this.pathHistory[idx+1].y,clamp(t,0,1))}
+}
+};
+Snake.prototype.grow=function(n){n=n||3;const last=this.segments[this.segments.length-1];const prev=this.segments.length>1?this.segments[this.segments.length-2]:this.head;const ang=Math.atan2(last.y-prev.y,last.x-prev.x);for(let i=0;i<n;i++)this.segments.push({x:last.x-Math.cos(ang)*SEGMENT_SPACING*(i+1),y:last.y-Math.sin(ang)*SEGMENT_SPACING*(i+1)})};
+Snake.prototype.checkSelfCollision=function(){if(this.isPlayer||this.segments.length<8)return false;const hx=this.head.x,hy=this.head.y;for(let i=4;i<this.segments.length;i++)if((hx-this.segments[i].x)**2+(hy-this.segments[i].y)**2<(SNAKE_WIDTH*1.2)**2)return true;return false};
+Snake.prototype.clampToBounds=function(){const m=WALL_THICKNESS+SNAKE_WIDTH/2;this.segments[0].x=clamp(this.head.x,m,WORLD_W-m);this.segments[0].y=clamp(this.head.y,m,WORLD_H-m)};
+Snake.prototype.getBodyPoints=function(ex){if(ex===undefined)ex=true;return ex?this.segments.slice(1):this.segments};
+Snake.prototype.respawn=function(){
+const m=WALL_THICKNESS+120;
+this.dir=randRange(0,Math.PI*2);
+this.segments=[];
+const startX=randRange(m,WORLD_W-m),startY=randRange(m,WORLD_H-m);
+for(let i=0;i<6;i++)this.segments.push({x:startX-Math.cos(this.dir)*SEGMENT_SPACING*i,y:startY-Math.sin(this.dir)*SEGMENT_SPACING*i});
+this.pathHistory=[];this.totalPathLen=0;this.alive=true;
+};
+
+// ==================== Boss ====================
+function Boss(x,y){
+this.x=x;this.y=y;this.dir=randRange(0,Math.PI*2);this.speed=BOSS_SPEED;
+this.hp=BOSS_HP_MAX;this.alive=true;this.radius=BOSS_RADIUS;
+this.fleeing=false;
+}
+Boss.prototype.update=function(dt,targetPlayers){
+if(!this.alive)return;
+let nearest=null,nd=Infinity;
+for(let i=0;i<targetPlayers.length;i++){
+const p=targetPlayers[i];
+if(!p||!p.alive)continue;
+const d=dist({x:this.x,y:this.y},p.head);
+if(d<nd){nd=d;nearest=p}
+}
+if(nearest){
+this.fleeing=this.hp<=BOSS_FLEE_HP;
+let targetAngle;
+if(this.fleeing){targetAngle=Math.atan2(this.y-nearest.head.y,this.x-nearest.head.x)}
+else{targetAngle=Math.atan2(nearest.head.y-this.y,nearest.head.x-this.x)}
+let diff=targetAngle-this.dir;
+while(diff>Math.PI)diff-=Math.PI*2;
+while(diff<-Math.PI)diff+=Math.PI*2;
+this.dir+=clamp(diff,-2*dt,2*dt);
+}
+const spd=this.fleeing?BOSS_FLEE_SPEED:BOSS_SPEED;
+this.x+=Math.cos(this.dir)*spd*dt;
+this.y+=Math.sin(this.dir)*spd*dt;
+const m=WALL_THICKNESS+this.radius;
+const prevX=this.x,prevY=this.y;
+this.x=clamp(this.x,m,WORLD_W-m);
+this.y=clamp(this.y,m,WORLD_H-m);
+if(this.x!==prevX||this.y!==prevY){this.dir+=Math.PI*0.5}
+};
+
+// ==================== 子弹 ====================
+function Bullet(x,y,dir){
+this.x=x;this.y=y;this.dir=dir;
+this.vx=Math.cos(dir)*BULLET_SPEED;
+this.vy=Math.sin(dir)*BULLET_SPEED;
+this.alive=true;this.radius=BULLET_RADIUS;
+}
+Bullet.prototype.update=function(dt){
+if(!this.alive)return;
+this.x+=this.vx*dt;this.y+=this.vy*dt;
+const m=WALL_THICKNESS;
+if(this.x<m||this.x>WORLD_W-m||this.y<m||this.y>WORLD_H-m)this.alive=false;
+};
+function BulletPickup(x,y){this.x=x;this.y=y;this.radius=12;this.bobOffset=Math.random()*Math.PI*2}
+BulletPickup.prototype.update=function(dt){this.bobOffset+=dt*2.5};
+BulletPickup.prototype.getDisplayY=function(){return this.y+Math.sin(this.bobOffset)*4};
+
+// ==================== 苹果/道具 ====================
+function PowerUp(x,y,type){this.x=x;this.y=y;this.type=type;this.radius=14;this.collected=false;this.bobOffset=Math.random()*Math.PI*2}
+PowerUp.prototype.update=function(dt){this.bobOffset+=dt*2.5};
+PowerUp.prototype.getDisplayY=function(){return this.y+Math.sin(this.bobOffset)*5};
+function Apple(x,y){this.x=x;this.y=y;this.radius=APPLE_RADIUS;this.bobOffset=Math.random()*Math.PI*2}
+Apple.prototype.update=function(dt){this.bobOffset+=dt*3};
+Apple.prototype.getDisplayY=function(){return this.y+Math.sin(this.bobOffset)*3};
+
+function createApple(){const m=WALL_THICKNESS+30;return new Apple(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m))}
+function createPowerUp(type){const m=WALL_THICKNESS+40;return new PowerUp(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),type)}
+function createBulletPickup(){const m=WALL_THICKNESS+60;return new BulletPickup(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m))}
+function spawnAI(){const m=WALL_THICKNESS+100;return new Snake(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),'#e74c3c',false)}
+
+function spawnSnakeShapeApples(snake){
+const pts=snake.segments;
+if(pts.length<3){for(let i=0;i<5;i++){const a=(i/5)*Math.PI*2;const x=snake.head.x+Math.cos(a)*20,y=snake.head.y+Math.sin(a)*20;const m=WALL_THICKNESS+10;if(x>m&&x<WORLD_W-m&&y>m&&y<WORLD_H-m)apples.push(new Apple(x,y))}return}
+const cnt=Math.min(12,Math.floor(pts.length/2)+4);
+let total=0;const ds=[];
+for(let i=1;i<pts.length;i++){const d=dist(pts[i-1],pts[i]);ds.push(d);total+=d}
+const spacing=total/(cnt-1);
+let cur=0,si=0;const positions=[{x:pts[0].x,y:pts[0].y}];
+for(let i=1;i<cnt-1;i++){const target=i*spacing;while(si<ds.length&&cur+ds[si]<target){cur+=ds[si];si++}if(si>=ds.length)break;const rem=target-cur;const t=ds[si]>0?rem/ds[si]:0;const p1=pts[si],p2=pts[si+1]||p1;positions.push({x:lerp(p1.x,p2.x,t),y:lerp(p1.y,p2.y,t)})}
+positions.push({x:pts[pts.length-1].x,y:pts[pts.length-1].y});
+const m=WALL_THICKNESS+10;
+for(const p of positions)if(p.x>m&&p.x<WORLD_W-m&&p.y>m&&p.y<WORLD_H-m)apples.push(new Apple(p.x,p.y));
+}
+
+function spawnPlayer(){const m=WALL_THICKNESS+120;player=new Snake(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),'#4da6ff',true);player.name=playerName}
+
+// ==================== 初始化游戏 ====================
+function initGame(){
+score=0;gameTime=0;isBoosting=false;powerBoostTimer=0;shieldTimer=0;respawnQueue=[];
+singleWinRewarded=false;bossWinRewarded=false;
+apples=[];powerUps=[];aiSnakes=[];bullets=[];bulletPickups=[];
+
+for(let i=0;i<TOTAL_APPLES;i++)apples.push(createApple());
+for(let i=0;i<POWERUP_COUNT_BOOST;i++)powerUps.push(createPowerUp('boost'));
+for(let i=0;i<POWERUP_COUNT_SHIELD;i++)powerUps.push(createPowerUp('shield'));
+
+if(gameSettings.bossMode){
+const m=WALL_THICKNESS+200;
+boss=new Boss(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m));
+for(let i=0;i<3;i++)aiSnakes.push(spawnAI());
+for(let i=0;i<BULLET_PICKUP_COUNT;i++)bulletPickups.push(createBulletPickup());
+bulletDisplay.style.display='block';
+bossHpDisplay.style.display='block';
+bossHpEl.textContent=boss.hp;
+shootBtnContainer.classList.add('show');
+} else {
+boss=null;
+for(let i=0;i<4;i++)aiSnakes.push(spawnAI());
+bulletDisplay.style.display='none';
+bossHpDisplay.style.display='none';
+shootBtnContainer.classList.remove('show');
+}
+
+spawnPlayer();
+camera.x=player.head.x;camera.y=player.head.y;camera.targetX=player.head.x;camera.targetY=player.head.y;
+
+window._myBulletAmmo=0;
+shootCooldown=0;
+
+giftCount=parseInt(localStorage.getItem('wf_snake_gift')||'0');
+giftBtnContainer.classList.add('show');
+updateGiftBtn();
+
+updateScoreLabel();
+updateUI();
+}
+
+function updateScoreLabel(){
+const applesEl=document.querySelector('.stat.apples');
+if(applesEl){
+  if(gameSettings.endlessMode||gameSettings.bossMode){
+    applesEl.innerHTML='🍎 <span id="score-display">'+score+'</span>';
+  } else {
+    applesEl.innerHTML='🍎 <span id="score-display">'+score+'</span> / 50';
+  }
+}
+}
+
+function updateUI(){
+const sc=document.getElementById('score-display');
+if(sc)sc.textContent=score;
+if(player)lengthDisplay.textContent='📏 长度: '+player.length;
+if(gameSettings.bossMode){
+bulletCount.textContent=window._myBulletAmmo||0;
+if(boss)bossHpEl.textContent=boss.hp;
+}
+let h='';
+if(powerBoostTimer>0)h+='<span class="effect-tag effect-boost">⚡ 加速 '+Math.ceil(powerBoostTimer)+'s</span>';
+if(shieldTimer>0)h+='<span class="effect-tag effect-shield">🛡️ 无敌 '+Math.ceil(shieldTimer)+'s</span>';
+if(isBoosting)h+='<span class="effect-tag effect-boost">🔥 加速中</span>';
+effectIndicator.innerHTML=h;
+updateGiftBtn();
+}
+
+// ==================== 礼包 ====================
+function updateGiftBtn(){
+if(!giftBtn)return;
+const cur=parseInt(localStorage.getItem('wf_snake_gift')||'0');
+if(cur!==giftCount)giftCount=cur;
+const label=giftBtn.querySelector('.label');
+if(label)label.textContent=giftCount>0?('礼包 '+giftCount):'礼包';
+const canUse=giftCount>0&&gameState==='playing'&&player&&player.alive&&!paused;
+giftBtn.disabled=!canUse;
+}
+
+function useGift(){
+if(gameState!=='playing'||!player||!player.alive||paused)return;
+if(giftCount<=0)return;
+giftCount--;
+localStorage.setItem('wf_snake_gift',giftCount);
+updateGiftBtn();
+score+=GIFT_APPLE_SINGLE;
+player.grow(GIFT_APPLE_SINGLE*GIFT_GROW_PER_APPLE);
+sfx.eat();
+updateScoreLabel();
+updateUI();
+if(!gameSettings.endlessMode&&!gameSettings.bossMode&&score>=WIN_SCORE){
+  checkSingleWin();
+}
+}
+
+// ==================== 碰撞 ====================
+function checkHeadBodyCollision(head,other,ex){if(ex===undefined)ex=true;const pts=other.getBodyPoints(ex);const thr=SNAKE_WIDTH*1.1;for(let i=0;i<pts.length;i++){const p=pts[i];if((head.x-p.x)**2+(head.y-p.y)**2<thr*thr)return true}return false}
+function checkHeadToHead(a,b){return(a.head.x-b.head.x)**2+(a.head.y-b.head.y)**2<(SNAKE_WIDTH*1.3)**2}
+
+function tryFireBullet(){
+if(shootCooldown>0)return;
+if(!gameSettings.bossMode)return;
+if((window._myBulletAmmo||0)<=0)return;
+if(!player||!player.alive)return;
+window._myBulletAmmo--;
+shootCooldown=SHOOT_COOLDOWN;
+const sp=player.head;
+const nx=sp.x+Math.cos(player.dir)*(SNAKE_WIDTH+4);
+const ny=sp.y+Math.sin(player.dir)*(SNAKE_WIDTH+4);
+bullets.push(new Bullet(nx,ny,player.dir));
+sfx.shoot();
+updateUI();
+}
+
+// ==================== 胜利判定 ====================
+function checkSingleWin(){
+if(singleWinRewarded)return;
+if(gameSettings.bossMode)return;
+if(gameSettings.endlessMode)return;
+if(score<WIN_SCORE)return;
+singleWinRewarded=true;
+gameState='over';
+addGold(WIN_GOLD_SINGLE);
+modalTitle.textContent='🏆 挑战成功！';
+modalSub.textContent='你吃满了 '+WIN_SCORE+' 个苹果！';
+modalGold.textContent='💰 +'+WIN_GOLD_SINGLE+' 金币（已存入账户）';
+modalGold.style.display='block';
+gameOverModal.classList.add('show');
+sfx.win();
+joystickContainer.style.display='none';
+boostBtnContainer.style.display='none';
+shootBtnContainer.style.display='none';
+giftBtnContainer.style.display='none';
+}
+
+function checkBossWin(){
+if(bossWinRewarded)return;
+bossWinRewarded=true;
+gameState='over';
+addGold(WIN_GOLD_BOSS);
+modalTitle.textContent='🏆 击败婉芬！';
+modalSub.textContent='你用子弹终结了婉芬！';
+modalGold.textContent='💰 +'+WIN_GOLD_BOSS+' 金币（已存入账户）';
+modalGold.style.display='block';
+gameOverModal.classList.add('show');
+sfx.win();
+joystickContainer.style.display='none';
+boostBtnContainer.style.display='none';
+shootBtnContainer.style.display='none';
+giftBtnContainer.style.display='none';
+}
+
+// ==================== 主逻辑 ====================
+function processGame(dt){
+if(gameState!=='playing'||!player)return;
+gameTime+=dt;
+if(shootCooldown>0)shootCooldown-=dt;
+
+if(player.alive){
+isBoosting=boostPressed;
+if(powerBoostTimer>0)powerBoostTimer-=dt;
+if(shieldTimer>0)shieldTimer-=dt;
+let spd=NORMAL_SPEED;
+if(isBoosting)spd*=BOOST_SPEED_MULT;
+if(powerBoostTimer>0)spd*=POWER_BOOST_MULT;
+player.speed=spd;
+const mag=Math.hypot(inputDir.x,inputDir.y);
+if(mag>0.15){const t=Math.atan2(inputDir.y,inputDir.x);let d=t-player.dir;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;player.dir+=clamp(d,-TURN_RATE*dt,TURN_RATE*dt)}
+player.update(dt);player.clampToBounds();
+
+for(let i=0;i<apples.length;i++){
+  const a=apples[i];
+  if(dist(player.head,a)<APPLE_RADIUS+SNAKE_WIDTH/2){
+    sfx.eat();player.grow(2);score++;
+    a.x=randRange(WALL_THICKNESS+30,WORLD_W-WALL_THICKNESS-30);
+    a.y=randRange(WALL_THICKNESS+30,WORLD_H-WALL_THICKNESS-30);
+    updateScoreLabel();
+  }
+}
+
+if(!gameSettings.endlessMode && !gameSettings.bossMode && score>=WIN_SCORE){
+  checkSingleWin();
+  return;
+}
+
+for(let i=0;i<powerUps.length;i++){
+  const pu=powerUps[i];
+  if(pu.collected)continue;
+  if(dist(player.head,pu)<pu.radius+SNAKE_WIDTH/2){
+    pu.collected=true;sfx.powerUp();
+    if(pu.type==='boost')powerBoostTimer=POWER_BOOST_DURATION;
+    else{shieldTimer=SHIELD_DURATION;sfx.shield()}
+    respawnQueue.push({type:pu.type,timer:RESPAWN_DELAY});
+  }
+}
+
+if(gameSettings.bossMode){
+  for(let i=bulletPickups.length-1;i>=0;i--){
+    const bp=bulletPickups[i];
+    if(dist(player.head,bp)<bp.radius+SNAKE_WIDTH/2){
+      window._myBulletAmmo=(window._myBulletAmmo||0)+1;
+      bulletPickups.splice(i,1);
+      sfx.pickup();
+    }
+  }
+}
+}
+
+for(let i=respawnQueue.length-1;i>=0;i--){
+respawnQueue[i].timer-=dt;
+if(respawnQueue[i].timer<=0){
+  const np=createPowerUp(respawnQueue[i].type);
+  let rep=false;
+  for(let j=0;j<powerUps.length;j++){
+    const pu=powerUps[j];
+    if(pu.collected&&pu.type===respawnQueue[i].type){pu.x=np.x;pu.y=np.y;pu.collected=false;rep=true;break}
+  }
+  if(!rep)powerUps.push(np);
+  respawnQueue.splice(i,1);
+}
+}
+
+if(gameSettings.bossMode){
+  while(bulletPickups.length<BULLET_PICKUP_COUNT)bulletPickups.push(createBulletPickup());
+}
+
+for(let i=0;i<aiSnakes.length;i++){
+const ai=aiSnakes[i];
+if(!ai.alive)continue;
+let target=null,bd=400;
+for(let k=0;k<apples.length;k++){const a=apples[k];const d=dist(ai.head,a);if(d<bd){bd=d;target=a}}
+for(let k=0;k<powerUps.length;k++){const pu=powerUps[k];if(pu.collected)continue;const d=dist(ai.head,pu);if(d<bd*1.2&&d<500){bd=d;target={x:pu.x,y:pu.y}}}
+if(target)ai.steerToward(target.x,target.y,AI_TURN_RATE);
+else{
+  ai.aiWanderTimer=(ai.aiWanderTimer||0)-dt;
+  if(ai.aiWanderTimer<=0){ai.aiWanderTimer=randRange(1.5,3);ai.aiWanderDir=randRange(0,Math.PI*2)}
+  ai.steerToward(ai.head.x+Math.cos(ai.aiWanderDir)*200,ai.head.y+Math.sin(ai.aiWanderDir)*200,AI_TURN_RATE*0.7);
+}
+const fx=ai.head.x+Math.cos(ai.dir)*80,fy=ai.head.y+Math.sin(ai.dir)*80;const m=WALL_THICKNESS+30;
+if(fx<m||fx>WORLD_W-m||fy<m||fy>WORLD_H-m)ai.dir+=randRange(1.5,3)*(Math.random()>0.5?1:-1);
+ai.update(dt);ai.clampToBounds();
+for(let k=0;k<apples.length;k++){const a=apples[k];if(dist(ai.head,a)<APPLE_RADIUS+SNAKE_WIDTH/2){ai.grow(2);a.x=randRange(WALL_THICKNESS+30,WORLD_W-WALL_THICKNESS-30);a.y=randRange(WALL_THICKNESS+30,WORLD_H-WALL_THICKNESS-30)}}
+for(let k=0;k<powerUps.length;k++){const pu=powerUps[k];if(pu.collected)continue;if(dist(ai.head,pu)<pu.radius+SNAKE_WIDTH/2){pu.collected=true;respawnQueue.push({type:pu.type,timer:RESPAWN_DELAY});if(pu.type==='boost'){ai.speed=AI_SPEED*1.6;setTimeout((function(a){return function(){if(a.alive)a.speed=AI_SPEED}})(ai),15000)}}}
+if(ai.checkSelfCollision())ai.alive=false;
+}
+
+const deaths=[];
+for(let i=0;i<aiSnakes.length;i++){
+const ai=aiSnakes[i];
+if(!ai.alive)continue;
+if(player&&player.alive){
+  if(shieldTimer>0){
+    if(checkHeadBodyCollision(ai.head,player,true)||checkHeadToHead(player,ai)){ai.alive=false;deaths.push(ai);sfx.death()}
+  } else {
+    if(checkHeadBodyCollision(player.head,ai,false)||checkHeadToHead(player,ai)){
+      player.alive=false;deaths.push(ai);continue;
+    }
+  }
+  if(checkHeadBodyCollision(ai.head,player,true)){ai.alive=false;deaths.push(ai);sfx.death()}
+}
+}
+
+for(let i=0;i<aiSnakes.length;i++){
+if(!aiSnakes[i].alive)continue;
+for(let j=i+1;j<aiSnakes.length;j++){
+  if(!aiSnakes[j].alive)continue;
+  if(checkHeadToHead(aiSnakes[i],aiSnakes[j])){aiSnakes[i].alive=false;aiSnakes[j].alive=false;deaths.push(aiSnakes[i],aiSnakes[j]);sfx.death()}
+  if(checkHeadBodyCollision(aiSnakes[i].head,aiSnakes[j],false)){aiSnakes[i].alive=false;deaths.push(aiSnakes[i]);sfx.death()}
+  if(checkHeadBodyCollision(aiSnakes[j].head,aiSnakes[i],false)){aiSnakes[j].alive=false;deaths.push(aiSnakes[j]);sfx.death()}
+}
+}
+for(let i=0;i<deaths.length;i++)spawnSnakeShapeApples(deaths[i]);
+for(let i=aiSnakes.length-1;i>=0;i--)if(!aiSnakes[i].alive)aiSnakes.splice(i,1);
+while(aiSnakes.length<(gameSettings.bossMode?3:4))aiSnakes.push(spawnAI());
+
+if(gameSettings.bossMode&&boss&&boss.alive){
+const targets=[];
+if(player&&player.alive)targets.push(player);
+boss.update(dt,targets);
+if(player&&player.alive&&dist(player.head,{x:boss.x,y:boss.y})<BOSS_RADIUS+SNAKE_WIDTH/2){
+  player.alive=false;
+}
+}
+
+if(gameSettings.bossMode){
+for(let i=bullets.length-1;i>=0;i--){
+  const b=bullets[i];
+  b.update(dt);
+  if(!b.alive){bullets.splice(i,1);continue}
+  if(boss&&boss.alive){
+    if(dist(b,{x:boss.x,y:boss.y})<BOSS_RADIUS+BULLET_RADIUS){
+      boss.hp-=BULLET_DAMAGE;
+      bullets.splice(i,1);
+      sfx.hit();
+      if(boss.hp<=0){
+        boss.alive=false;
+        checkBossWin();
+        return;
+      }
+    }
+  }
+}
+}
+
+if(player&&!player.alive){
+  endGameForMe();
+  return;
+}
+
+for(let i=0;i<apples.length;i++)apples[i].update(dt);
+for(let i=0;i<powerUps.length;i++)powerUps[i].update(dt);
+for(let i=0;i<bulletPickups.length;i++)bulletPickups[i].update(dt);
+
+if(player&&player.alive){
+camera.targetX=player.head.x;camera.targetY=player.head.y;
+camera.x=lerp(camera.x,camera.targetX,0.18);
+camera.y=lerp(camera.y,camera.targetY,0.18);
+const hw=viewW/2,hh=viewH/2;
+camera.x=clamp(camera.x,hw,WORLD_W-hw);
+camera.y=clamp(camera.y,hh,WORLD_H-hh);
+}
+updateUI();
+}
+
+function endGameForMe(){
+if(gameState==='over')return;
+gameState='over';
+modalTitle.textContent='💀 你死了';
+modalSub.textContent='得分：'+score+' 个苹果';
+modalGold.style.display='none';
+gameOverModal.classList.add('show');
+sfx.death();
+joystickContainer.style.display='none';
+boostBtnContainer.style.display='none';
+shootBtnContainer.style.display='none';
+giftBtnContainer.style.display='none';
+}
+
+// ==================== 渲染 ====================
+function drawRoundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath()}
+
+function drawMinimap(){
+if(!showMinimap)return;
+const mw=100,mh=70,mx=10,my=10;
+ctx.fillStyle='rgba(0,0,0,0.6)';drawRoundRect(mx,my,mw,mh,6);ctx.fill();
+ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;drawRoundRect(mx,my,mw,mh,6);ctx.stroke();
+ctx.fillStyle='rgba(240,240,240,0.5)';ctx.fillRect(mx+2,my+2,mw-4,mh-4);
+ctx.fillStyle='rgba(30,30,30,0.7)';
+const ww=WALL_THICKNESS/WORLD_W*mw,wh=WALL_THICKNESS/WORLD_H*mh;
+ctx.fillRect(mx,my,mw,wh);ctx.fillRect(mx,my+mh-wh,mw,wh);ctx.fillRect(mx,my,ww,mh);ctx.fillRect(mx+mw-ww,my,ww,mh);
+ctx.fillStyle='rgba(80,200,80,0.7)';
+for(let i=0;i<apples.length;i+=3){const a=apples[i];const ax=mx+a.x/WORLD_W*mw,ay=my+a.y/WORLD_H*mh;ctx.fillRect(ax-0.7,ay-0.7,1.4,1.4)}
+ctx.fillStyle='#e74c3c';
+for(let i=0;i<aiSnakes.length;i++){const ai=aiSnakes[i];if(!ai.alive)continue;const ax=mx+ai.head.x/WORLD_W*mw,ay=my+ai.head.y/WORLD_H*mh;ctx.beginPath();ctx.arc(ax,ay,1.8,0,Math.PI*2);ctx.fill()}
+if(gameSettings.bossMode&&boss&&boss.alive){const bx=mx+boss.x/WORLD_W*mw,by=my+boss.y/WORLD_H*mh;ctx.fillStyle='#ff00aa';ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);ctx.fill()}
+if(player&&player.alive){const px=mx+player.head.x/WORLD_W*mw,py=my+player.head.y/WORLD_H*mh;ctx.fillStyle='#4da6ff';ctx.beginPath();ctx.arc(px,py,2.6,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();ctx.arc(px,py,3.2,0,Math.PI*2);ctx.stroke()}
+const vpX=mx+(camera.x-viewW/2)/WORLD_W*mw,vpY=my+(camera.y-viewH/2)/WORLD_H*mh,vpW=viewW/WORLD_W*mw,vpH=viewH/WORLD_H*mh;
+ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.lineWidth=1;ctx.strokeRect(clamp(vpX,mx,mx+mw-vpW),clamp(vpY,my,my+mh-vpH),vpW,vpH);
+}
+
+function drawSnakeBody(snake,col1,isPlayer){
+const segs=snake.segments;
+const n=segs.length;
+if(n<2){
+const sp=worldToScreen(snake.head.x,snake.head.y);
+ctx.fillStyle=col1;ctx.beginPath();ctx.arc(sp.x,sp.y,SNAKE_WIDTH/2,0,Math.PI*2);ctx.fill();return;
+}
+const step=n>60?2:1;
+ctx.strokeStyle=col1;ctx.lineWidth=SNAKE_WIDTH;ctx.lineCap='round';ctx.lineJoin='round';
+ctx.beginPath();
+let first=true;
+for(let i=0;i<n;i+=step){
+const s=segs[i];
+const sp=worldToScreen(s.x,s.y);
+if(first){ctx.moveTo(sp.x,sp.y);first=false}
+else ctx.lineTo(sp.x,sp.y);
+}
+if((n-1)%step!==0){const s=segs[n-1];const sp=worldToScreen(s.x,s.y);ctx.lineTo(sp.x,sp.y)}
+ctx.stroke();
+const hp=worldToScreen(snake.head.x,snake.head.y);
+const r=SNAKE_WIDTH/2+1;
+const eo=r*0.5;
+const ex1=hp.x+Math.cos(snake.dir-0.6)*eo,ey1=hp.y+Math.sin(snake.dir-0.6)*eo;
+const ex2=hp.x+Math.cos(snake.dir+0.6)*eo,ey2=hp.y+Math.sin(snake.dir+0.6)*eo;
+ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex1,ey1,r*0.36,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(ex2,ey2,r*0.36,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#111';ctx.beginPath();ctx.arc(ex1+Math.cos(snake.dir)*0.5,ey1+Math.sin(snake.dir)*0.5,r*0.18,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(ex2+Math.cos(snake.dir)*0.5,ey2+Math.sin(snake.dir)*0.5,r*0.18,0,Math.PI*2);ctx.fill();
+}
+
+function drawBoss(){
+if(!boss||!boss.alive)return;
+if(!isInView(boss.x,boss.y,80))return;
+const sp=worldToScreen(boss.x,boss.y);
+const ringColor=boss.fleeing?'rgba(255,200,0,0.35)':'rgba(255,0,100,0.25)';
+ctx.fillStyle=ringColor;
+ctx.beginPath();ctx.arc(sp.x,sp.y,BOSS_RADIUS+10+Math.sin(gameTime*4)*4,0,Math.PI*2);ctx.fill();
+if(bossImgLoaded){
+ctx.save();
+ctx.translate(sp.x,sp.y);
+ctx.rotate(boss.dir+Math.PI/2);
+ctx.drawImage(bossImg,-BOSS_RADIUS,-BOSS_RADIUS,BOSS_RADIUS*2,BOSS_RADIUS*2);
+ctx.restore();
+} else {
+ctx.fillStyle=boss.fleeing?'#cc8800':'#cc0066';
+ctx.beginPath();ctx.arc(sp.x,sp.y,BOSS_RADIUS,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle=boss.fleeing?'#ffcc44':'#ff44aa';ctx.lineWidth=3;ctx.stroke();
+ctx.fillStyle='#fff';
+ctx.beginPath();ctx.arc(sp.x-8,sp.y-4,5,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(sp.x+8,sp.y-4,5,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';
+ctx.beginPath();ctx.arc(sp.x-8,sp.y-4,2.5,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(sp.x+8,sp.y-4,2.5,0,Math.PI*2);ctx.fill();
+}
+ctx.fillStyle=boss.fleeing?'#ffcc44':'#ff88cc';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+ctx.fillText(boss.fleeing?'婉芬（逃跑中）':'婉芬',sp.x,sp.y-BOSS_RADIUS-4);
+const bw=60,bh=6;
+ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(sp.x-bw/2,sp.y-BOSS_RADIUS-20,bw,bh);
+ctx.fillStyle=boss.fleeing?'#ffaa00':'#ff2266';
+ctx.fillRect(sp.x-bw/2+1,sp.y-BOSS_RADIUS-19,(bw-2)*(boss.hp/BOSS_HP_MAX),bh-2);
+}
+
+function render(){
+if(canvas.width!==viewW||canvas.height!==viewH){canvas.width=viewW;canvas.height=viewH;canvas.style.width=viewW+'px';canvas.style.height=viewH+'px'}
+ctx.fillStyle='#f5f5f0';ctx.fillRect(0,0,viewW,viewH);
+
+const wL=WALL_THICKNESS-camera.x+viewW/2,wT=WALL_THICKNESS-camera.y+viewH/2,wR=(WORLD_W-WALL_THICKNESS)-camera.x+viewW/2,wB=(WORLD_H-WALL_THICKNESS)-camera.y+viewH/2;
+ctx.fillStyle='#1a1a1a';
+if(wT>-10)ctx.fillRect(-10,-10,viewW+20,Math.max(0,wT+10));
+if(wB<viewH+10)ctx.fillRect(-10,wB,viewW+20,viewH+20);
+if(wL>-10)ctx.fillRect(-10,-10,Math.max(0,wL+10),viewH+20);
+if(wR<viewW+10)ctx.fillRect(wR,-10,viewW+20,viewH+20);
+ctx.strokeStyle='#333';ctx.lineWidth=2;
+const im=WALL_THICKNESS-5;
+ctx.strokeRect(im-camera.x+viewW/2,im-camera.y+viewH/2,WORLD_W-2*im,WORLD_H-2*im);
+
+for(let i=0;i<powerUps.length;i++){
+const pu=powerUps[i];
+if(pu.collected)continue;
+if(!isInView(pu.x,pu.y))continue;
+const sp=worldToScreen(pu.x,pu.getDisplayY());
+if(pu.type==='boost'){ctx.fillStyle='#ffaa00';ctx.beginPath();ctx.arc(sp.x,sp.y,pu.radius,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⚡',sp.x,sp.y)}
+else{ctx.fillStyle='#5599ff';ctx.beginPath();ctx.arc(sp.x,sp.y,pu.radius,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🛡️',sp.x,sp.y)}
+}
+
+if(gameSettings.bossMode){
+for(let i=0;i<bulletPickups.length;i++){
+const bp=bulletPickups[i];
+if(!isInView(bp.x,bp.y))continue;
+const sp=worldToScreen(bp.x,bp.getDisplayY());
+ctx.fillStyle='#ffdd44';ctx.beginPath();ctx.arc(sp.x,sp.y,bp.radius,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🔫',sp.x,sp.y);
+}
+}
+
+ctx.fillStyle='#4a4';
+for(let i=0;i<apples.length;i++){
+const a=apples[i];
+if(!isInView(a.x,a.y,30))continue;
+const sp=worldToScreen(a.x,a.getDisplayY());
+ctx.beginPath();ctx.arc(sp.x,sp.y,APPLE_RADIUS,0,Math.PI*2);ctx.fill();
+}
+
+for(let i=0;i<aiSnakes.length;i++){
+const ai=aiSnakes[i];
+if(ai.alive&&isInView(ai.head.x,ai.head.y))drawSnakeBody(ai,'#e74c3c',false);
+}
+
+drawBoss();
+
+if(gameSettings.bossMode){
+for(let i=0;i<bullets.length;i++){
+const b=bullets[i];
+if(!b.alive)continue;
+if(!isInView(b.x,b.y,30))continue;
+const sp=worldToScreen(b.x,b.y);
+ctx.fillStyle='#ffdd00';
+ctx.beginPath();ctx.arc(sp.x,sp.y,BULLET_RADIUS,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle='#ff8800';ctx.lineWidth=2;ctx.stroke();
+}
+}
+
+if(player&&player.alive){
+if(shieldTimer>0){
+const sp=worldToScreen(player.head.x,player.head.y);
+ctx.strokeStyle='rgba(150,210,255,0.9)';ctx.lineWidth=3;ctx.setLineDash([8,4]);
+ctx.beginPath();ctx.arc(sp.x,sp.y,SNAKE_WIDTH+10+Math.sin(gameTime*8)*4,0,Math.PI*2);ctx.stroke();
+ctx.setLineDash([]);
+}
+drawSnakeBody(player,'#4da6ff',true);
+}
+
+drawMinimap();
+}
+
+// ==================== 返回主页（设置页） ====================
+function backToHome(){
+gameState='setup';
+paused=false;
+pauseModal.classList.remove('show');
+gameOverModal.classList.remove('show');
+setupScreen.classList.remove('hidden');
+document.body.classList.remove('in-game');
+joystickContainer.style.display='';
+boostBtnContainer.style.display='';
+shootBtnContainer.classList.remove('show');
+giftBtnContainer.classList.remove('show');
+}
+
+// ==================== 开始游戏 ====================
+function startGame(){
+initAudio();
+gameSettings.allowMinimap=setMinimap.checked;
+gameSettings.endlessMode=setEndless.checked;
+gameSettings.bossMode=setBoss.checked;
+
+showMinimap=gameSettings.allowMinimap;
+endlessMode=gameSettings.endlessMode;
+minimapCheckbox.checked=showMinimap;
+
+setupScreen.classList.add('hidden');
+document.body.classList.add('in-game');
+gameState='playing';
+
+initGame();
+}
+
+// ==================== 暂停 ====================
+function togglePause(){
+if(gameState!=='playing'&&gameState!=='paused')return;
+if(paused){
+  paused=false;
+  pauseModal.classList.remove('show');
+  if(gameState==='paused')gameState='playing';
+} else {
+  paused=true;
+  gameState='paused';
+  pauseScore.textContent=score;
+  pauseLength.textContent=player?player.length:5;
+  const m=Math.floor(gameTime/60),s=Math.floor(gameTime%60);
+  pauseTime.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  pauseModal.classList.add('show');
+}
+}
+
+// ==================== 事件绑定 ====================
+btnStartGame.addEventListener('click',startGame);
+btnRestart.addEventListener('click',function(){
+  gameOverModal.classList.remove('show');
+  document.body.classList.add('in-game');
+  gameState='playing';
+  joystickContainer.style.display='';
+  boostBtnContainer.style.display='';
+  giftBtnContainer.classList.add('show');
+  initGame();
+});
+
+pauseBtn.addEventListener('click',togglePause);
+btnResume.addEventListener('click',togglePause);
+btnBackHome.addEventListener('click',backToHome);
+
+minimapCheckbox.addEventListener('change',function(e){
+  showMinimap=e.target.checked;
+});
+
+setBoss.addEventListener('change',function(){
+  if(setBoss.checked){
+    setEndless.checked=true;
+    setEndless.disabled=true;
+    setupTip.textContent='Boss 模式：击败婉芬 +100💰（无尽模式已自动开启）';
+  } else {
+    setEndless.disabled=false;
+    setupTip.textContent='普通模式：吃满 50 个苹果即胜利 +30💰';
+  }
+});
+
+setEndless.addEventListener('change',function(){
+  if(!setBoss.checked){
+    setupTip.textContent=setEndless.checked
+      ? '无尽模式：没有胜利条件，尽情游玩吧！'
+      : '普通模式：吃满 50 个苹果即胜利 +30💰';
+  }
+});
+
+// 键盘
+window.addEventListener('keydown',function(e){
+if(gameState!=='playing'&&gameState!=='paused')return;
+keys[e.code]=true;
+if(e.code==='Space'||e.code==='KeyZ'){e.preventDefault();boostPressed=true;initAudio();sfx.boost()}
+if(e.code==='KeyF'){e.preventDefault();tryFireBullet()}
+if(e.code==='KeyG'){e.preventDefault();useGift()}
+if(e.code==='KeyW'||e.code==='ArrowUp'){inputDir.y=-1}
+if(e.code==='KeyS'||e.code==='ArrowDown'){inputDir.y=1}
+if(e.code==='KeyA'||e.code==='ArrowLeft'){inputDir.x=-1}
+if(e.code==='KeyD'||e.code==='ArrowRight'){inputDir.x=1}
+const m=Math.hypot(inputDir.x,inputDir.y);if(m>1){inputDir.x/=m;inputDir.y/=m}
+});
+window.addEventListener('keyup',function(e){
+if(gameState!=='playing'&&gameState!=='paused')return;
+keys[e.code]=false;
+if(e.code==='Space'||e.code==='KeyZ'){if(!boostActive)boostPressed=false}
+if(e.code==='KeyW'||e.code==='ArrowUp'){inputDir.y=keys['KeyS']||keys['ArrowDown']?1:0}
+if(e.code==='KeyS'||e.code==='ArrowDown'){inputDir.y=keys['KeyW']||keys['ArrowUp']?-1:0}
+if(e.code==='KeyA'||e.code==='ArrowLeft'){inputDir.x=keys['KeyD']||keys['ArrowRight']?1:0}
+if(e.code==='KeyD'||e.code==='ArrowRight'){inputDir.x=keys['KeyA']||keys['ArrowLeft']?-1:0}
+});
+window.addEventListener('keydown',function(e){if(e.code==='Escape'&&(gameState==='playing'||gameState==='paused')){e.preventDefault();togglePause()}});
+
+// 摇杆
+function updateJoystickPositions(){const r=joystickContainer.getBoundingClientRect();joystickCenter.x=r.left+r.width/2;joystickCenter.y=r.top+r.height/2;joystickRadius=r.width/2-15}
+function getJoystickInput(cx,cy){const dx=cx-joystickCenter.x,dy=cy-joystickCenter.y;const mag=Math.hypot(dx,dy);const cm=Math.min(mag,joystickRadius);const nx=mag>0?dx/mag:0,ny=mag>0?dy/mag:0;const ratio=cm/joystickRadius;return{x:nx*ratio,y:ny*ratio,thumbX:nx*cm,thumbY:ny*cm}}
+
+joystickContainer.addEventListener('touchstart',function(e){e.preventDefault();initAudio();if(joystickTouchId!==null)return;const t=e.changedTouches[0];joystickTouchId=t.identifier;joystickActive=true;updateJoystickPositions();const i=getJoystickInput(t.clientX,t.clientY);inputDir={x:i.x,y:i.y};joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'},{passive:false});
+joystickContainer.addEventListener('touchmove',function(e){e.preventDefault();for(const t of e.changedTouches)if(t.identifier===joystickTouchId){const i=getJoystickInput(t.clientX,t.clientY);inputDir={x:i.x,y:i.y};joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'}},{passive:false});
+joystickContainer.addEventListener('touchend',function(e){for(const t of e.changedTouches)if(t.identifier===joystickTouchId){joystickTouchId=null;joystickActive=false;inputDir={x:0,y:0};joystickThumb.style.transform='translate(-50%,-50%)'}});
+joystickContainer.addEventListener('touchcancel',function(){joystickTouchId=null;joystickActive=false;inputDir={x:0,y:0};joystickThumb.style.transform='translate(-50%,-50%)'});
+joystickContainer.addEventListener('mousedown',function(e){e.preventDefault();initAudio();joystickActive=true;updateJoystickPositions();const i=getJoystickInput(e.clientX,e.clientY);inputDir={x:i.x,y:i.y};joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'});
+window.addEventListener('mousemove',function(e){if(joystickActive&&!joystickTouchId){const i=getJoystickInput(e.clientX,e.clientY);inputDir={x:i.x,y:i.y};joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'}});
+window.addEventListener('mouseup',function(){if(joystickActive&&!joystickTouchId){joystickActive=false;inputDir={x:0,y:0};joystickThumb.style.transform='translate(-50%,-50%)'}});
+
+// 加速
+boostBtnContainer.addEventListener('touchstart',function(e){e.preventDefault();initAudio();if(boostTouchId!==null)return;boostTouchId=e.changedTouches[0].identifier;boostActive=true;boostPressed=true;boostBtn.classList.add('pressed');sfx.boost()},{passive:false});
+boostBtnContainer.addEventListener('touchend',function(e){for(const t of e.changedTouches)if(t.identifier===boostTouchId){boostTouchId=null;boostActive=false;boostPressed=false;boostBtn.classList.remove('pressed')}});
+boostBtnContainer.addEventListener('touchcancel',function(){boostTouchId=null;boostActive=false;boostPressed=false;boostBtn.classList.remove('pressed')});
+boostBtnContainer.addEventListener('mousedown',function(e){e.preventDefault();initAudio();boostActive=true;boostPressed=true;boostBtn.classList.add('pressed');sfx.boost()});
+boostBtnContainer.addEventListener('mouseup',function(){boostActive=false;boostPressed=false;boostBtn.classList.remove('pressed')});
+boostBtnContainer.addEventListener('mouseleave',function(){if(boostActive){boostActive=false;boostPressed=false;boostBtn.classList.remove('pressed')}});
+
+// 发射
+shootBtnContainer.addEventListener('touchstart',function(e){e.preventDefault();initAudio();shootBtn.classList.add('pressed');tryFireBullet()},{passive:false});
+shootBtnContainer.addEventListener('touchend',function(){shootBtn.classList.remove('pressed')});
+shootBtnContainer.addEventListener('touchcancel',function(){shootBtn.classList.remove('pressed')});
+shootBtnContainer.addEventListener('mousedown',function(e){e.preventDefault();initAudio();shootBtn.classList.add('pressed');tryFireBullet()});
+shootBtnContainer.addEventListener('mouseup',function(){shootBtn.classList.remove('pressed')});
+shootBtnContainer.addEventListener('mouseleave',function(){shootBtn.classList.remove('pressed')});
+
+// 礼包
+giftBtnContainer.addEventListener('touchstart',function(e){e.preventDefault();initAudio();if(giftBtn.disabled)return;giftBtn.classList.add('pressed');useGift()},{passive:false});
+giftBtnContainer.addEventListener('touchend',function(){giftBtn.classList.remove('pressed')});
+giftBtnContainer.addEventListener('touchcancel',function(){giftBtn.classList.remove('pressed')});
+giftBtnContainer.addEventListener('mousedown',function(e){e.preventDefault();initAudio();if(giftBtn.disabled)return;giftBtn.classList.add('pressed');useGift()});
+giftBtnContainer.addEventListener('mouseup',function(){giftBtn.classList.remove('pressed')});
+giftBtnContainer.addEventListener('mouseleave',function(){giftBtn.classList.remove('pressed')});
+
+// ==================== 主循环 ====================
+let lastTime=performance.now();
+let accumulator=0;
+function gameLoop(now){
+requestAnimationFrame(gameLoop);
+let dt=(now-lastTime)/1000;lastTime=now;
+if(dt>0.2)dt=0.2;if(dt<=0)dt=1/60;
+accumulator+=dt;
+if(accumulator<1/RENDER_FPS)return;
+const step=Math.min(accumulator,0.1);
+accumulator=0;
+
+if(gameState==='playing'&&!paused){
+  processGame(step);
+}
+
+render();
+}
+
+function handleResize(){
+viewW=wrapper.clientWidth;viewH=wrapper.clientHeight;
+canvas.width=viewW;canvas.height=viewH;
+canvas.style.width=viewW+'px';canvas.style.height=viewH+'px';
+ctx.setTransform(1,0,0,1,0,0);
+updateJoystickPositions();
+}
+window.addEventListener('resize',handleResize);
+window.addEventListener('orientationchange',function(){setTimeout(handleResize,300)});
+
+// ==================== 初始化 ====================
+(function initBackground(){
+apples=[];for(let i=0;i<TOTAL_APPLES;i++)apples.push(createApple());
+powerUps=[];for(let i=0;i<POWERUP_COUNT_BOOST;i++)powerUps.push(createPowerUp('boost'));
+for(let i=0;i<POWERUP_COUNT_SHIELD;i++)powerUps.push(createPowerUp('shield'));
+const m=WALL_THICKNESS+120;
+player=new Snake(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),'#4da6ff',true);
+camera.x=player.head.x;camera.y=player.head.y;camera.targetX=player.head.x;camera.targetY=player.head.y;
+})();
+
+(function fillBadge(){
+if(badgeAvatar){badgeAvatar.onerror=function(){this.onerror=null;this.src=DEFAULT_AVATAR};badgeAvatar.src=safeImgSrc(playerAvatar)}
+if(badgeName)badgeName.textContent=playerName;
+})();
+
+handleResize();
+updateJoystickPositions();
+requestAnimationFrame(gameLoop);
+console.log('🐍 贪吃蛇大作战 · 单人版已启动（暂停面板含返回主页按钮）');
+})();
+</script>
+</body>
+</html>

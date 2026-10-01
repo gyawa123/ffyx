@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>贪吃蛇大作战 · 联机版</title>
+<style>
+:root{--gold:#f0b040;--danger:#e74c3c;--player:#4da6ff}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:#050508;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;touch-action:manipulation;position:fixed;top:0;left:0;display:flex;justify-content:center;align-items:center}
+#bg-layer{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;overflow:hidden;background:#050508}
+#bg-layer iframe{display:block;width:100%;height:100%;border:0;pointer-events:none}
+body.in-game #bg-layer{display:none}
+#game-wrapper{position:relative;width:100vw;height:100vh;max-width:1400px;max-height:900px;overflow:hidden;background:#000;z-index:1}
+@media(min-width:1200px){#game-wrapper{border-radius:14px;margin:0 16px}}
+#game-canvas{display:block;width:100%;height:100%;position:absolute;top:0;left:0;z-index:1}
+#ui-layer{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none}
+#lobby-screen{position:absolute;top:0;left:0;width:100%;height:100%;z-index:50;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(5,5,10,.5);backdrop-filter:blur(2px);gap:14px;overflow:hidden;overflow-y:auto;padding:20px 0}
+#lobby-screen.hidden{display:none}
+#lobby-screen .logo{font-size:2.6rem;font-weight:900;letter-spacing:3px;background:linear-gradient(120deg,#4da6ff 0%,#8be9ff 40%,#f0b040 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-align:center}
+.lobby-buttons{display:flex;flex-direction:column;gap:12px;align-items:center}
+.lobby-btn{padding:14px 54px;font-size:1.1rem;font-weight:700;border:none;border-radius:50px;cursor:pointer;letter-spacing:2px;transition:.2s;pointer-events:auto;min-width:240px;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.4);position:relative;z-index:2}
+.lobby-btn:active{transform:scale(.97)}
+.lobby-btn.primary{background:linear-gradient(135deg,#4da6ff,#2979cc);color:#fff}
+.lobby-btn.secondary{background:rgba(255,255,255,.12);color:#fff;border:2px solid rgba(255,255,255,.3)}
+.lobby-btn.ghost{background:rgba(0,0,0,.5);color:#8899aa;border:1px solid rgba(255,255,255,.15);font-size:.85rem;padding:9px 26px;min-width:auto}
+.lobby-btn.success{background:linear-gradient(135deg,#2ecc71,#1a9a4e);color:#fff}
+.lobby-btn.danger{background:linear-gradient(135deg,#c0392b,#8a1a10);color:#fff}
+#create-room-panel,#room-code-display,#join-room-display{display:none;flex-direction:column;align-items:center;gap:10px;background:rgba(0,0,0,.6);padding:18px 34px;border-radius:16px;border:1px solid rgba(77,166,255,.3);pointer-events:auto;backdrop-filter:blur(10px);max-width:min(420px,95vw);position:relative;z-index:2}
+#create-room-panel.show,#room-code-display.show,#join-room-display.show{display:flex}
+.panel-title{color:#4da6ff;font-size:1rem;font-weight:700;letter-spacing:2px;margin-bottom:4px}
+.setting-row{display:flex;align-items:center;gap:10px;color:#ddd;font-size:.85rem;background:rgba(255,255,255,.05);padding:8px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.1);min-width:230px;cursor:pointer}
+.setting-row input{width:16px;height:16px;cursor:pointer;accent-color:#4da6ff}
+.setting-row.boss{background:rgba(180,60,60,.15);border-color:rgba(255,100,100,.3)}
+#room-code-display .label{color:#8899aa;font-size:.72rem;letter-spacing:2px}
+#room-code-display .code{font-size:2.6rem;font-weight:900;color:#4da6ff;letter-spacing:10px;text-shadow:0 0 26px rgba(77,166,255,.7);font-family:'Courier New',monospace}
+#room-code-display .status{color:#f0b040;font-size:.82rem}
+#room-code-display .players{color:#6f6;font-size:.78rem}
+#join-room-display .label{color:#8899aa;font-size:.72rem;letter-spacing:2px}
+#room-code-input{font-size:1.9rem;font-weight:900;text-align:center;letter-spacing:9px;width:230px;padding:9px 14px;background:rgba(255,255,255,.05);border:2px solid rgba(77,166,255,.4);border-radius:12px;color:#4da6ff;outline:none;font-family:'Courier New',monospace;text-transform:uppercase}
+#join-status{color:#f0b040;font-size:.82rem;min-height:1.1em;text-align:center}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.player-list{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;-webkit-overflow-scrolling:touch;width:100%;margin-top:8px;padding-right:4px}
+.player-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);flex-shrink:0}
+.player-avatar{width:28px;height:28px;border-radius:50%;border:2px solid #4da6ff;object-fit:cover;background:#222;flex-shrink:0;display:block}
+.player-name{flex:1;color:#fff;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kick-btn{width:22px;height:22px;border-radius:50%;background:rgba(200,50,50,.8);color:#fff;border:none;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+#net-status-bar{position:absolute;top:10px;left:14px;z-index:35;display:none;align-items:center;gap:8px;background:rgba(0,0,0,.7);padding:5px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.15);font-size:.7rem;color:#fff}
+#net-status-bar.show{display:flex}
+#net-status-bar .dot{width:7px;height:7px;border-radius:50%;background:#6f6;box-shadow:0 0 8px #6f6}
+#net-status-bar .dot.disconnected{background:#e74c3c;box-shadow:0 0 8px #e74c3c}
+#net-status-bar .room-info{color:#8899aa}
+#net-status-bar .room-info strong{color:#4da6ff}
+#top-bar{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;pointer-events:none;z-index:6}
+#top-bar .stat{background:rgba(10,10,20,.75);color:#fff;padding:5px 13px;border-radius:20px;font-size:.76rem;font-weight:600;letter-spacing:1px;white-space:nowrap;border:1px solid rgba(255,255,255,.15)}
+#top-bar .stat.apples{color:#6f6}
+#top-bar .stat.gold{color:#f0c060}
+#top-bar .stat.bullets{color:#ffcc44}
+#top-bar .stat.boss-hp{color:#ff6b6b}
+#effect-indicator{position:absolute;top:44px;left:50%;transform:translateX(-50%);display:flex;gap:7px;pointer-events:none;z-index:6;flex-wrap:wrap;justify-content:center}
+.effect-tag{padding:3px 12px;border-radius:14px;font-size:.68rem;font-weight:700;white-space:nowrap}
+.effect-boost{background:rgba(255,150,30,.85);color:#000}
+.effect-shield{background:rgba(80,160,255,.85);color:#000}
+#player-badge{position:absolute;top:10px;right:150px;z-index:30;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.65);padding:5px 14px 5px 5px;border-radius:30px;border:1px solid rgba(255,255,255,.2);pointer-events:none}
+#player-badge img{width:34px;height:34px;border-radius:50%;border:2px solid #4da6ff;object-fit:cover;background:#222;display:block}
+#player-badge span{color:#fff;font-size:.82rem;font-weight:600;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#net-quality{position:absolute;top:10px;right:64px;z-index:30;display:none;align-items:center;gap:5px;background:rgba(0,0,0,.65);padding:6px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.2);color:#6f6;font-size:.72rem;font-weight:700;pointer-events:none;white-space:nowrap}
+#net-quality.show{display:flex}
+#net-quality .net-dot{width:7px;height:7px;border-radius:50%;background:#6f6;box-shadow:0 0 6px #6f6}
+#net-quality.medium{color:#f0b040}
+#net-quality.medium .net-dot{background:#f0b040;box-shadow:0 0 6px #f0b040}
+#net-quality.bad{color:#e74c3c}
+#net-quality.bad .net-dot{background:#e74c3c;box-shadow:0 0 6px #e74c3c}
+#joystick-container{position:absolute;bottom:36px;left:30px;z-index:20;pointer-events:auto;width:118px;height:118px;touch-action:none}
+#joystick-base{width:100%;height:100%;border-radius:50%;background:rgba(255,255,255,.06);border:3px solid rgba(255,255,255,.22);position:relative}
+#joystick-thumb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.95),rgba(180,200,240,.7));position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 4px 18px rgba(0,0,0,.5);pointer-events:none}
+#boost-btn-container{position:absolute;bottom:36px;right:30px;z-index:20;pointer-events:auto;width:108px;height:108px;touch-action:none}
+#boost-btn{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 40% 30%,#ff6b35,#c0392b);border:4px solid rgba(255,150,80,.6);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(200,60,20,.5);color:#fff;font-weight:900;font-size:1rem;text-shadow:0 2px 5px rgba(0,0,0,.5);transition:transform .12s;text-align:center}
+#boost-btn.pressed{transform:scale(.9)}
+#boost-btn .energy-text{display:flex;flex-direction:column;align-items:center}
+#boost-btn .energy-text .label{font-size:.68rem;opacity:.85}
+#shoot-btn-container{position:absolute;bottom:158px;right:48px;z-index:20;pointer-events:auto;width:68px;height:68px;touch-action:none;display:none}
+#shoot-btn-container.show{display:block}
+#shoot-btn{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 40% 30%,#ffdd44,#cc8800);border:3px solid rgba(255,220,80,.7);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(200,150,0,.5);color:#000;font-weight:900;font-size:.85rem;transition:transform .12s;text-align:center}
+#shoot-btn.pressed{transform:scale(.9)}
+#shoot-btn .energy-text{display:flex;flex-direction:column;align-items:center}
+#shoot-btn .energy-text .label{font-size:.5rem;opacity:.9}
+#pause-btn{position:absolute;top:10px;right:14px;z-index:30;pointer-events:auto;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 11px;font-size:.88rem;cursor:pointer;transition:.2s}
+#pause-btn:active{transform:scale(.95)}
+#pause-modal{position:absolute;top:0;left:0;width:100%;height:100%;z-index:45;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);pointer-events:auto;overflow-y:auto;padding:16px}
+#pause-modal.show{display:flex}
+.pause-card{background:rgba(15,18,30,.95);border-radius:16px;border:1px solid rgba(255,255,255,.15);padding:18px;min-width:min(320px,90vw);max-width:min(500px,95vw);display:flex;flex-direction:column;gap:10px;max-height:90vh;overflow-y:auto}
+.pause-title{color:#fff;font-size:1.3rem;font-weight:800;letter-spacing:2px;text-align:center;margin-bottom:6px}
+.pause-section{background:rgba(0,0,0,.4);border-radius:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.1)}
+.pause-section-title{color:#8899aa;font-size:.72rem;letter-spacing:2px;margin-bottom:6px}
+.pause-room-code{color:#4da6ff;font-size:1.6rem;font-weight:900;letter-spacing:8px;text-align:center;font-family:'Courier New',monospace;text-shadow:0 0 14px rgba(77,166,255,.6)}
+.death-stat-row{display:flex;justify-content:space-between;color:#ddd;font-size:.82rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.death-stat-row:last-child{border-bottom:none}
+.death-stat-row .stat-name{color:#4da6ff;font-weight:600}
+.death-stat-row .stat-count{color:#e74c3c;font-weight:700}
+.pause-card .toggle-row{display:flex;align-items:center;gap:8px;color:#ddd;font-size:.82rem;background:rgba(255,255,255,.05);padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.1);cursor:pointer}
+.pause-card .toggle-row input{width:16px;height:16px;cursor:pointer;accent-color:#4da6ff}
+.pause-card button{padding:11px 22px;font-size:.95rem;font-weight:700;border:none;border-radius:50px;cursor:pointer;letter-spacing:1px}
+#btn-resume{background:#4da6ff;color:#fff}
+#btn-exit{background:rgba(180,40,40,.75);color:#fff}
+.shop-buy-btn{padding:8px 14px;font-size:.82rem;font-weight:700;border-radius:20px;cursor:pointer;transition:.15s;font-family:inherit}
+.shop-buy-btn:active{transform:scale(.95)}
+.shop-buy-btn:disabled{opacity:.4;cursor:not-allowed}
+#game-over-modal{position:absolute;top:0;left:0;width:100%;height:100%;z-index:15;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,.82);flex-direction:column;gap:18px;pointer-events:auto}
+#game-over-modal.show{display:flex}
+#game-over-modal .modal-title{font-size:2.4rem;font-weight:900;color:#fff}
+#game-over-modal .modal-sub{color:#ccc;font-size:.92rem}
+#game-over-modal .btn-restart{padding:13px 42px;font-size:1rem;font-weight:700;background:#4da6ff;color:#fff;border:none;border-radius:50px;cursor:pointer}
+@media (orientation: landscape) and (max-height: 560px){
+#lobby-screen{gap:6px;padding:10px 0}
+#lobby-screen .logo{font-size:1.7rem;letter-spacing:2px}
+.lobby-buttons{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:8px}
+.lobby-btn{padding:10px 30px;font-size:.88rem;min-width:150px}
+.lobby-btn.ghost{padding:7px 20px;font-size:.76rem}
+#create-room-panel,#room-code-display,#join-room-display{padding:12px 22px;gap:7px}
+#room-code-display .code{font-size:1.8rem;letter-spacing:8px}
+#room-code-input{font-size:1.4rem;width:180px;letter-spacing:7px}
+.setting-row{padding:6px 12px;font-size:.78rem;min-width:190px}
+#joystick-container{width:94px;height:94px;bottom:10px;left:14px}
+#joystick-thumb{width:40px;height:40px}
+#boost-btn-container{width:90px;height:90px;bottom:10px;right:14px}
+#boost-btn{font-size:.78rem}
+#shoot-btn-container{width:58px;height:58px;bottom:110px;right:30px}
+#shoot-btn{font-size:.75rem}
+#shoot-btn .energy-text .label{font-size:.45rem}
+#top-bar{top:5px;gap:7px}
+#top-bar .stat{font-size:.68rem;padding:4px 10px}
+#effect-indicator{top:34px}
+#pause-btn{top:5px;right:10px;font-size:.78rem;padding:5px 9px}
+#net-quality{top:5px;right:54px;padding:4px 9px;font-size:.66rem}
+#player-badge{top:5px;right:136px;padding:3px 10px 3px 3px}
+#player-badge img{width:26px;height:26px}
+#player-badge span{font-size:.72rem;max-width:55px}
+.pause-card{padding:14px}
+.pause-title{font-size:1.1rem}
+}
+</style>
+</head>
+<body>
+<div id="bg-layer"><iframe src="bg.html" scrolling="no" frameborder="0"></iframe></div>
+
+<div id="game-wrapper">
+<canvas id="game-canvas"></canvas>
+
+<div id="lobby-screen">
+<div class="logo" id="main-logo">请选择</div>
+<div class="lobby-buttons" id="lobby-buttons">
+<button class="lobby-btn primary" id="btn-create-room">🏠 创建房间</button>
+<button class="lobby-btn secondary" id="btn-join-room">🔗 加入房间</button>
+</div>
+<div id="create-room-panel">
+<div class="panel-title">创建房间设置</div>
+<label class="setting-row"><input type="checkbox" id="setting-minimap" checked> 🗺️ 允许小地图</label>
+<label class="setting-row"><input type="checkbox" id="setting-endless" checked> ♾️ 无尽模式（不触发50奖励）</label>
+<label class="setting-row"><input type="checkbox" id="setting-deathstats" checked> 💀 死亡统计</label>
+<label class="setting-row boss"><input type="checkbox" id="setting-boss"> 👹 Boss 模式（婉芬）</label>
+<div class="btn-row">
+<button class="lobby-btn primary" id="btn-confirm-create" style="font-size:.95rem;padding:10px 30px;min-width:150px;">创建</button>
+<button class="lobby-btn ghost" id="btn-cancel-create">返回</button>
+</div>
+</div>
+<div id="room-code-display">
+<div class="label">房间号（告诉朋友）</div>
+<div class="code" id="my-room-code">----</div>
+<div class="status" id="room-status">⏳ 等待玩家加入…</div>
+<div class="players" id="room-players">👤 当前玩家：1 / 20</div>
+<div class="player-list" id="room-player-list"></div>
+<div class="btn-row" style="margin-top:6px;">
+<button class="lobby-btn success" id="btn-start-game" style="font-size:.9rem;padding:10px 26px;min-width:140px;">▶️ 开始游戏</button>
+<button class="lobby-btn ghost" id="btn-host-back">返回大厅</button>
+<button class="lobby-btn danger" id="btn-guest-leave" style="display:none;font-size:.9rem;padding:10px 26px;min-width:140px;">🚪 退出房间</button>
+</div>
+</div>
+<div id="join-room-display">
+<div class="label">输入房间号</div>
+<input type="text" id="room-code-input" maxlength="4" placeholder="----" autocomplete="off">
+<div id="join-status">等待输入…</div>
+<div class="btn-row">
+<button class="lobby-btn primary" id="btn-do-join" style="font-size:.9rem;padding:10px 30px;min-width:150px;">🔗 加入</button>
+<button class="lobby-btn ghost" id="btn-back-lobby">返回</button>
+</div>
+</div>
+</div>
+
+<div id="net-status-bar">
+<div class="dot" id="net-dot"></div>
+<span>联机中</span>
+<span class="room-info">房间：<strong id="net-room-code">----</strong></span>
+<span class="room-info">👤 <strong id="net-player-count">1</strong> / 20</span>
+</div>
+
+<div id="ui-layer">
+<div id="top-bar">
+<div class="stat apples">🍎 <span id="score-display">0</span></div>
+<div class="stat" id="length-display">📏 长度: 5</div>
+<div class="stat gold">💰 <span id="gold-display">500</span></div>
+<div class="stat bullets" id="bullet-display" style="display:none;">🔫 子弹: <span id="bullet-count">0</span></div>
+<div class="stat boss-hp" id="boss-hp-display" style="display:none;">👹 婉芬: <span id="boss-hp">50</span></div>
+</div>
+<div id="effect-indicator"></div>
+</div>
+
+<div id="net-quality"><span class="net-dot"></span><span id="net-ping">--</span></div>
+<div id="player-badge">
+<img id="badge-avatar" src="mo.png" alt="">
+<span id="badge-name">玩家</span>
+</div>
+
+<button id="pause-btn" title="暂停">⏸️</button>
+
+<div id="pause-modal">
+<div class="pause-card">
+<div class="pause-title">⏸️ 暂停（游戏继续）</div>
+<div class="pause-section" id="pause-room-section">
+<div class="pause-section-title">🏠 房间号</div>
+<div class="pause-room-code" id="pause-room-code">----</div>
+</div>
+<div class="pause-section">
+<div class="pause-section-title">💰 我的金币</div>
+<div style="color:#f0c060;font-size:1.3rem;font-weight:900;text-align:center;letter-spacing:2px;" id="pause-gold-display">500</div>
+</div>
+<div class="pause-section" id="shop-section">
+<div class="pause-section-title">🏪 商店</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+<button class="shop-buy-btn" data-item="boost" style="border:1px solid #f0c060;background:rgba(240,192,96,0.15);color:#f0c060;">⚡ 加速30s (50💰)</button>
+<button class="shop-buy-btn" data-item="shield" style="border:1px solid #4da6ff;background:rgba(77,166,255,0.15);color:#4da6ff;">🛡️ 护盾15s (60💰)</button>
+<button class="shop-buy-btn" data-item="bullet" style="border:1px solid #ffdd44;background:rgba(255,221,68,0.15);color:#ffdd44;">🔫 子弹x10 (40💰)</button>
+</div>
+</div>
+<div class="pause-section" id="death-stats-section" style="display:none;">
+<div class="pause-section-title">💀 死亡统计</div>
+<div id="death-stats-list"></div>
+</div>
+<div class="pause-section" id="pause-player-list-section">
+<div class="pause-section-title">👥 玩家列表</div>
+<div class="player-list" id="pause-player-list"></div>
+</div>
+<label class="toggle-row" id="minimap-toggle-row"><input type="checkbox" id="minimap-checkbox" checked> 🗺️ 显示小地图</label>
+<label class="toggle-row" id="endless-toggle-row"><input type="checkbox" id="endless-checkbox" checked> ♾️ 无尽模式</label>
+<button id="btn-resume">▶️ 关闭面板</button>
+<button id="btn-exit">🚪 退出到大厅</button>
+</div>
+</div>
+
+<div id="joystick-container"><div id="joystick-base"><div id="joystick-thumb"></div></div></div>
+<div id="boost-btn-container"><div id="boost-btn"><div class="energy-text"><span style="font-size:1.3rem;">⚡</span><span class="label">加速</span></div></div></div>
+<div id="shoot-btn-container"><div id="shoot-btn"><div class="energy-text"><span style="font-size:1.1rem;">🔫</span><span class="label">发射</span></div></div></div>
+
+<div id="game-over-modal">
+<div class="modal-title" id="modal-title">你死了</div>
+<div class="modal-sub" id="modal-sub"></div>
+<button class="btn-restart" id="btn-restart">🔄 再来一局</button>
+</div>
+</div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+(function(){
+'use strict';
+const DEFAULT_AVATAR='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#2a3a55"/><circle cx="16" cy="13" r="6" fill="#4da6ff"/><path d="M4 30c0-7 5-12 12-12s12 5 12 12z" fill="#4da6ff"/></svg>');
+function safeImgSrc(src){return src&&typeof src==='string'&&src.length>0?src:DEFAULT_AVATAR}
+
+const canvas=document.getElementById('game-canvas');
+const ctx=canvas.getContext('2d',{alpha:false});
+const wrapper=document.getElementById('game-wrapper');
+const scoreDisplay=document.getElementById('score-display'),lengthDisplay=document.getElementById('length-display');
+const goldDisplay=document.getElementById('gold-display'),pauseGoldDisplay=document.getElementById('pause-gold-display');
+const bulletDisplay=document.getElementById('bullet-display'),bulletCount=document.getElementById('bullet-count');
+const bossHpDisplay=document.getElementById('boss-hp-display'),bossHpEl=document.getElementById('boss-hp');
+const effectIndicator=document.getElementById('effect-indicator');
+const joystickContainer=document.getElementById('joystick-container'),joystickThumb=document.getElementById('joystick-thumb');
+const boostBtn=document.getElementById('boost-btn'),boostBtnContainer=document.getElementById('boost-btn-container');
+const shootBtn=document.getElementById('shoot-btn'),shootBtnContainer=document.getElementById('shoot-btn-container');
+const gameOverModal=document.getElementById('game-over-modal'),modalTitle=document.getElementById('modal-title'),modalSub=document.getElementById('modal-sub'),btnRestart=document.getElementById('btn-restart');
+const pauseBtn=document.getElementById('pause-btn'),pauseModal=document.getElementById('pause-modal'),btnResume=document.getElementById('btn-resume'),btnExit=document.getElementById('btn-exit');
+const minimapCheckbox=document.getElementById('minimap-checkbox'),endlessCheckbox=document.getElementById('endless-checkbox');
+const minimapToggleRow=document.getElementById('minimap-toggle-row'),endlessToggleRow=document.getElementById('endless-toggle-row');
+const deathStatsSection=document.getElementById('death-stats-section'),deathStatsList=document.getElementById('death-stats-list');
+const pausePlayerList=document.getElementById('pause-player-list');
+const pauseRoomCode=document.getElementById('pause-room-code');
+const roomPlayerList=document.getElementById('room-player-list');
+const lobbyScreen=document.getElementById('lobby-screen'),btnCreateRoom=document.getElementById('btn-create-room'),btnJoinRoom=document.getElementById('btn-join-room');
+const mainLogo=document.getElementById('main-logo');
+const createRoomPanel=document.getElementById('create-room-panel'),btnConfirmCreate=document.getElementById('btn-confirm-create'),btnCancelCreate=document.getElementById('btn-cancel-create');
+const settingMinimap=document.getElementById('setting-minimap'),settingEndless=document.getElementById('setting-endless'),settingDeathstats=document.getElementById('setting-deathstats'),settingBoss=document.getElementById('setting-boss');
+const roomCodeDisplay=document.getElementById('room-code-display'),myRoomCode=document.getElementById('my-room-code'),roomStatus=document.getElementById('room-status'),roomPlayers=document.getElementById('room-players'),btnStartGame=document.getElementById('btn-start-game'),btnHostBack=document.getElementById('btn-host-back'),btnGuestLeave=document.getElementById('btn-guest-leave');
+const joinRoomDisplay=document.getElementById('join-room-display'),roomCodeInput=document.getElementById('room-code-input'),joinStatus=document.getElementById('join-status'),btnDoJoin=document.getElementById('btn-do-join'),btnBackLobby=document.getElementById('btn-back-lobby');
+const netStatusBar=document.getElementById('net-status-bar'),netDot=document.getElementById('net-dot'),netRoomCode=document.getElementById('net-room-code'),netPlayerCountEl=document.getElementById('net-player-count');
+const lobbyButtons=document.getElementById('lobby-buttons');
+const badgeAvatar=document.getElementById('badge-avatar'),badgeName=document.getElementById('badge-name');
+const netQualityEl=document.getElementById('net-quality'),netPingEl=document.getElementById('net-ping');
+
+const bossImg=new Image();
+let bossImgLoaded=false;
+bossImg.onload=function(){bossImgLoaded=true};
+bossImg.onerror=function(){bossImgLoaded=false};
+bossImg.src='wf.png';
+
+// ==================== 金币系统（与婉芬大挑战共用 wfgold） ====================
+let gold = parseInt(localStorage.getItem('wfgold') || '500', 10);
+if(isNaN(gold) || gold < 0) gold = 500;
+function saveGold(){ localStorage.setItem('wfgold', gold); }
+function addGold(n){ gold += n; saveGold(); updateGoldUI(); }
+function updateGoldUI(){
+  if(goldDisplay) goldDisplay.textContent = gold;
+  if(pauseGoldDisplay) pauseGoldDisplay.textContent = gold;
+}
+
+// 飘字提示（小）
+function showToast(text, duration){
+  duration = duration || 1800;
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:28%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.9);color:#f0c060;padding:14px 30px;border-radius:14px;font-size:1.05rem;font-weight:bold;z-index:99999;pointer-events:none;border:2px solid #f0c060;box-shadow:0 0 30px rgba(240,192,96,0.6);white-space:nowrap;text-align:center;';
+  t.textContent = text;
+  document.body.appendChild(t);
+  setTimeout(function(){
+    t.style.transition = 'opacity .4s, transform .4s';
+    t.style.opacity = '0';
+    t.style.transform = 'translate(-50%,-80%)';
+    setTimeout(function(){ t.remove(); }, 450);
+  }, duration);
+}
+
+// 大弹窗提示（带确定按钮 + 4秒自动关闭）
+function showPopupBig(title, sub){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:99998;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:linear-gradient(135deg,rgba(30,20,10,0.98),rgba(50,35,15,0.98));border:3px solid #f0c060;border-radius:22px;padding:32px 44px;text-align:center;box-shadow:0 0 50px rgba(240,192,96,0.6);max-width:90vw;">'
+    + '<div style="font-size:1.8rem;font-weight:900;color:#f0c060;letter-spacing:2px;margin-bottom:14px;text-shadow:0 0 20px rgba(240,192,96,0.7);">' + title + '</div>'
+    + '<div style="font-size:1.05rem;color:#fff;line-height:1.7;">' + sub + '</div>'
+    + '<button style="margin-top:22px;padding:12px 40px;font-size:1rem;font-weight:800;border:none;border-radius:50px;background:linear-gradient(135deg,#f0c060,#e8a030);color:#000;cursor:pointer;letter-spacing:1px;">确定</button>'
+    + '</div>';
+  document.body.appendChild(overlay);
+  const closeBtn = overlay.querySelector('button');
+  let closed = false;
+  const close = function(){
+    if(closed) return; closed = true;
+    overlay.style.transition='opacity .3s';
+    overlay.style.opacity='0';
+    setTimeout(function(){ if(overlay.parentNode) overlay.remove(); }, 320);
+  };
+  closeBtn.addEventListener('click', close);
+  setTimeout(function(){ if(overlay.parentNode) close(); }, 4000);
+}
+
+let audioCtx=null;
+function initAudio(){if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){audioCtx=null}}if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume()}
+function playSound(f,t,d,v){v=v||0.08;if(!audioCtx)return;const now=audioCtx.currentTime;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t;o.frequency.setValueAtTime(f,now);g.gain.setValueAtTime(v,now);g.gain.exponentialRampToValueAtTime(0.001,now+d);o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+d)}
+const sfx={eat:function(){playSound(600,'sine',.12,.06);playSound(900,'sine',.1,.06)},boost:function(){playSound(200,'sawtooth',.3,.04)},shield:function(){playSound(400,'triangle',.25,.06)},death:function(){playSound(80,'sawtooth',.4,.08)},win:function(){playSound(500,'sine',.15,.08);playSound(700,'sine',.12,.08)},powerUp:function(){playSound(300,'square',.2,.05)},shoot:function(){playSound(700,'square',.08,.05)},hit:function(){playSound(150,'sawtooth',.15,.08)},pickup:function(){playSound(800,'sine',.1,.06)},coin:function(){playSound(900,'sine',.1,.07);playSound(1200,'sine',.12,.07)}};
+
+const WORLD_W=3200,WORLD_H=2200,WALL_THICKNESS=60,SEGMENT_SPACING=14,SNAKE_WIDTH=11,APPLE_RADIUS=10;
+const NORMAL_SPEED=130,BOOST_SPEED_MULT=1.7,POWER_BOOST_MULT=2.2,AI_SPEED=100,TURN_RATE=5.5,AI_TURN_RATE=3.5;
+const TOTAL_APPLES=60,WIN_SCORE=50,POWER_BOOST_DURATION=20,SHIELD_DURATION=10;
+const POWERUP_COUNT_BOOST=4,POWERUP_COUNT_SHIELD=3,RESPAWN_DELAY=0.6;
+const NET_SYNC_INTERVAL=80;
+const MAX_PLAYERS=20,CULL_MARGIN=120,RENDER_FPS=40;
+const BOSS_HP_MAX=50,BOSS_SPEED=85,BOSS_FLEE_SPEED=105,BOSS_RADIUS=32;
+const BOSS_FLEE_HP=5;
+const BULLET_SPEED=520,BULLET_RADIUS=6,BULLET_DAMAGE=1;
+const BULLET_PICKUP_COUNT=10;
+const SHOOT_COOLDOWN=0.15;
+const PING_INTERVAL=2000;
+// 金币奖励参数
+const APPLE_GOAL=50;
+const APPLE_REWARD=100;
+const BOSS_REWARD=250;
+
+const playerAvatar = localStorage.getItem('wf_player_avatar') || 'mo.png';
+const playerName   = localStorage.getItem('wf_player_name')   || '玩家1';
+
+let gameState='lobby';
+let player=null,aiSnakes=[],apples=[],powerUps=[];
+let boss=null,bullets=[],bulletPickups=[];
+let camera={x:0,y:0,targetX:0,targetY:0};
+let score=0,gameTime=0,respawnQueue=[];
+let inputDir={x:0,y:0},boostPressed=false,isBoosting=false,powerBoostTimer=0,shieldTimer=0;
+let joystickActive=false,joystickTouchId=null,joystickCenter={x:0,y:0},joystickRadius=0;
+let boostTouchId=null,boostActive=false,keys={};
+let shootCooldown=0;
+let paused=false,showMinimap=true,endlessMode=true;
+let inputDirty=false;
+let viewW=0,viewH=0;
+let roomSettings={allowMinimap:true,endlessMode:true,showDeath:true,bossMode:false};
+
+const MQTT_BROKER='wss://broker.emqx.io:8084/mqtt';
+let mqttClient=null,mqttTopic='',myMqttId='p_'+Math.random().toString(36).substr(2,9);
+let isHost=false,myRoomCodeStr='';
+let myPlayerName = playerName;
+let remotePlayers={},remoteSnakes={};
+let netPlayerCount=1,lastSyncTime=0,isMultiplayer=false,gameStarted=false,helloAckReceived=false;
+let deathCounts={};
+let currentPlayerList=[];
+let netPing=0,lastPingSent=0;
+
+const dist=function(a,b){return Math.hypot(a.x-b.x,a.y-b.y)};
+const clamp=function(v,mn,mx){return Math.max(mn,Math.min(mx,v))};
+const randRange=function(mn,mx){return mn+Math.random()*(mx-mn)};
+const randInt=function(mn,mx){return Math.floor(randRange(mn,mx+1))};
+const lerp=function(a,b,t){return a+(b-a)*t};
+function worldToScreen(x,y){return {x:(x-camera.x)+viewW/2,y:(y-camera.y)+viewH/2}}
+function isInView(x,y,m){m=m||CULL_MARGIN;return Math.abs(x-camera.x)<viewW/2+m&&Math.abs(y-camera.y)<viewH/2+m}
+function generateRoomCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=c[Math.floor(Math.random()*c.length)];return s}
+
+function Snake(x,y,color,isPlayer){
+this.isPlayer=!!isPlayer;this.color=color;this.segments=[];this.dir=randRange(0,Math.PI*2);
+this.speed=this.isPlayer?NORMAL_SPEED:AI_SPEED;this.alive=true;
+const len=this.isPlayer?6:randInt(4,7);
+for(let i=0;i<len;i++)this.segments.push({x:x-Math.cos(this.dir)*SEGMENT_SPACING*i,y:y-Math.sin(this.dir)*SEGMENT_SPACING*i});
+this.pathHistory=[];this.totalPathLen=0;this.name='';
+this.targetSegments=null;this.targetDir=this.dir;
+}
+Object.defineProperty(Snake.prototype,'head',{get:function(){return this.segments[0]}});
+Object.defineProperty(Snake.prototype,'length',{get:function(){return this.segments.length}});
+Object.defineProperty(Snake.prototype,'totalLength',{get:function(){return(this.segments.length-1)*SEGMENT_SPACING}});
+Snake.prototype.steerToward=function(tx,ty,rate){const d=Math.atan2(ty-this.head.y,tx-this.head.x);let diff=d-this.dir;while(diff>Math.PI)diff-=Math.PI*2;while(diff<-Math.PI)diff+=Math.PI*2;this.dir+=clamp(diff,-rate/60,rate/60)};
+Snake.prototype.update=function(dt){
+if(!this.alive)return;
+const move=this.speed*dt;
+const nx=this.head.x+Math.cos(this.dir)*move,ny=this.head.y+Math.sin(this.dir)*move;
+this.pathHistory.unshift({x:this.head.x,y:this.head.y});
+this.totalPathLen+=move;
+const maxLen=this.totalLength+SEGMENT_SPACING*3;
+while(this.totalPathLen>maxLen&&this.pathHistory.length>2){const rem=this.pathHistory.pop();this.totalPathLen-=dist(rem,this.pathHistory[this.pathHistory.length-1])}
+this.segments[0].x=nx;this.segments[0].y=ny;
+let cum=0,idx=0;
+for(let i=1;i<this.segments.length;i++){
+const target=i*SEGMENT_SPACING;
+while(idx<this.pathHistory.length-1&&cum+dist(this.pathHistory[idx],this.pathHistory[idx+1])<target){cum+=dist(this.pathHistory[idx],this.pathHistory[idx+1]);idx++}
+if(idx>=this.pathHistory.length-1){const last=this.pathHistory[this.pathHistory.length-1];this.segments[i].x=last.x;this.segments[i].y=last.y}
+else{const rem=target-cum;const sd=dist(this.pathHistory[idx],this.pathHistory[idx+1]);const t=sd>0?rem/sd:0;this.segments[i].x=lerp(this.pathHistory[idx].x,this.pathHistory[idx+1].x,clamp(t,0,1));this.segments[i].y=lerp(this.pathHistory[idx].y,this.pathHistory[idx+1].y,clamp(t,0,1))}
+}
+};
+Snake.prototype.grow=function(n){n=n||3;const last=this.segments[this.segments.length-1];const prev=this.segments.length>1?this.segments[this.segments.length-2]:this.head;const ang=Math.atan2(last.y-prev.y,last.x-prev.x);for(let i=0;i<n;i++)this.segments.push({x:last.x-Math.cos(ang)*SEGMENT_SPACING*(i+1),y:last.y-Math.sin(ang)*SEGMENT_SPACING*(i+1)})};
+Snake.prototype.checkSelfCollision=function(){if(this.isPlayer||this.segments.length<8)return false;const hx=this.head.x,hy=this.head.y;for(let i=4;i<this.segments.length;i++)if((hx-this.segments[i].x)**2+(hy-this.segments[i].y)**2<(SNAKE_WIDTH*1.2)**2)return true;return false};
+Snake.prototype.clampToBounds=function(){const m=WALL_THICKNESS+SNAKE_WIDTH/2;this.segments[0].x=clamp(this.head.x,m,WORLD_W-m);this.segments[0].y=clamp(this.head.y,m,WORLD_H-m)};
+Snake.prototype.getBodyPoints=function(ex){if(ex===undefined)ex=true;return ex?this.segments.slice(1):this.segments};
+Snake.prototype.serializeFlat=function(){const n=this.segments.length;const arr=new Array(n*2);for(let i=0;i<n;i++){arr[i*2]=Math.round(this.segments[i].x);arr[i*2+1]=Math.round(this.segments[i].y)}return arr};
+Snake.deserializeFlat=function(arr,dir,alive,color,name,isPlayer){
+const s=Object.create(Snake.prototype);
+s.isPlayer=!!isPlayer;s.color=color;s.dir=dir;s.alive=alive;s.speed=NORMAL_SPEED;
+s.segments=[];const n=arr.length/2;
+for(let i=0;i<n;i++)s.segments.push({x:arr[i*2],y:arr[i*2+1]});
+s.pathHistory=[];s.totalPathLen=0;s.name=name||'';
+s.targetSegments=null;s.targetDir=dir;
+return s;
+};
+Snake.prototype.setTarget=function(arr,dir,alive){
+this.targetDir=dir;this.alive=alive;
+if(!this.targetSegments||this.targetSegments.length!==arr.length/2){
+this.targetSegments=[];
+for(let i=0;i<arr.length;i+=2)this.targetSegments.push({x:arr[i],y:arr[i+1]});
+}else{
+for(let i=0;i<arr.length;i+=2){this.targetSegments[i/2].x=arr[i];this.targetSegments[i/2].y=arr[i+1]}
+}
+};
+Snake.prototype.smoothFollow=function(t){
+if(!this.targetSegments)return;
+if(this.segments.length!==this.targetSegments.length){
+this.segments=[];
+for(let i=0;i<this.targetSegments.length;i++)this.segments.push({x:this.targetSegments[i].x,y:this.targetSegments[i].y});
+} else {
+for(let i=0;i<this.segments.length;i++){
+this.segments[i].x=lerp(this.segments[i].x,this.targetSegments[i].x,t);
+this.segments[i].y=lerp(this.segments[i].y,this.targetSegments[i].y,t);
+}
+}
+this.dir=this.targetDir;
+};
+Snake.prototype.respawn=function(){
+const m=WALL_THICKNESS+120;
+this.dir=randRange(0,Math.PI*2);
+this.segments=[];
+const startX=randRange(m,WORLD_W-m),startY=randRange(m,WORLD_H-m);
+for(let i=0;i<6;i++)this.segments.push({x:startX-Math.cos(this.dir)*SEGMENT_SPACING*i,y:startY-Math.sin(this.dir)*SEGMENT_SPACING*i});
+this.pathHistory=[];this.totalPathLen=0;this.alive=true;
+this.targetSegments=null;
+};
+
+function Boss(x,y){this.x=x;this.y=y;this.dir=randRange(0,Math.PI*2);this.speed=BOSS_SPEED;this.hp=BOSS_HP_MAX;this.alive=true;this.radius=BOSS_RADIUS;this.targetX=x;this.targetY=y;this.fleeing=false;}
+Boss.prototype.update=function(dt,targetPlayers){
+if(!this.alive)return;
+let nearest=null,nd=Infinity;
+for(let i=0;i<targetPlayers.length;i++){
+const p=targetPlayers[i];
+if(!p||!p.alive)continue;
+const d=dist({x:this.x,y:this.y},p.head);
+if(d<nd){nd=d;nearest=p}
+}
+if(nearest){
+this.fleeing=this.hp<=BOSS_FLEE_HP;
+let targetAngle;
+if(this.fleeing){targetAngle=Math.atan2(this.y-nearest.head.y,this.x-nearest.head.x)}
+else{targetAngle=Math.atan2(nearest.head.y-this.y,nearest.head.x-this.x)}
+let diff=targetAngle-this.dir;
+while(diff>Math.PI)diff-=Math.PI*2;
+while(diff<-Math.PI)diff+=Math.PI*2;
+this.dir+=clamp(diff,-2*dt,2*dt);
+}
+const spd=this.fleeing?BOSS_FLEE_SPEED:BOSS_SPEED;
+this.x+=Math.cos(this.dir)*spd*dt;this.y+=Math.sin(this.dir)*spd*dt;
+const m=WALL_THICKNESS+this.radius;
+const prevX=this.x,prevY=this.y;
+this.x=clamp(this.x,m,WORLD_W-m);this.y=clamp(this.y,m,WORLD_H-m);
+if(this.x!==prevX||this.y!==prevY){this.dir+=Math.PI*0.5}
+};
+
+function Bullet(x,y,dir){this.x=x;this.y=y;this.dir=dir;this.vx=Math.cos(dir)*BULLET_SPEED;this.vy=Math.sin(dir)*BULLET_SPEED;this.alive=true;this.radius=BULLET_RADIUS;}
+Bullet.prototype.update=function(dt){if(!this.alive)return;this.x+=this.vx*dt;this.y+=this.vy*dt;const m=WALL_THICKNESS;if(this.x<m||this.x>WORLD_W-m||this.y<m||this.y>WORLD_H-m)this.alive=false;};
+function BulletPickup(x,y){this.x=x;this.y=y;this.radius=12;this.bobOffset=Math.random()*Math.PI*2}
+BulletPickup.prototype.update=function(dt){this.bobOffset+=dt*2.5};
+BulletPickup.prototype.getDisplayY=function(){return this.y+Math.sin(this.bobOffset)*4};
+
+function PowerUp(x,y,type){this.x=x;this.y=y;this.type=type;this.radius=14;this.collected=false;this.bobOffset=Math.random()*Math.PI*2}
+PowerUp.prototype.update=function(dt){this.bobOffset+=dt*2.5};
+PowerUp.prototype.getDisplayY=function(){return this.y+Math.sin(this.bobOffset)*5};
+function Apple(x,y){this.x=x;this.y=y;this.radius=APPLE_RADIUS;this.bobOffset=Math.random()*Math.PI*2}
+Apple.prototype.update=function(dt){this.bobOffset+=dt*3};
+Apple.prototype.getDisplayY=function(){return this.y+Math.sin(this.bobOffset)*3};
+
+function createApple(){const m=WALL_THICKNESS+30;return new Apple(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m))}
+function createPowerUp(type){const m=WALL_THICKNESS+40;return new PowerUp(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),type)}
+function createBulletPickup(){const m=WALL_THICKNESS+60;return new BulletPickup(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m))}
+function spawnAI(){const m=WALL_THICKNESS+100;return new Snake(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),'#e74c3c',false)}
+
+function spawnSnakeShapeApples(snake){
+const pts=snake.segments;
+if(pts.length<3){for(let i=0;i<5;i++){const a=(i/5)*Math.PI*2;const x=snake.head.x+Math.cos(a)*20,y=snake.head.y+Math.sin(a)*20;const m=WALL_THICKNESS+10;if(x>m&&x<WORLD_W-m&&y>m&&y<WORLD_H-m)apples.push(new Apple(x,y))}return}
+const cnt=Math.min(12,Math.floor(pts.length/2)+4);
+let total=0;const ds=[];
+for(let i=1;i<pts.length;i++){const d=dist(pts[i-1],pts[i]);ds.push(d);total+=d}
+const spacing=total/(cnt-1);
+let cur=0,si=0;const positions=[{x:pts[0].x,y:pts[0].y}];
+for(let i=1;i<cnt-1;i++){const target=i*spacing;while(si<ds.length&&cur+ds[si]<target){cur+=ds[si];si++}if(si>=ds.length)break;const rem=target-cur;const t=ds[si]>0?rem/ds[si]:0;const p1=pts[si],p2=pts[si+1]||p1;positions.push({x:lerp(p1.x,p2.x,t),y:lerp(p1.y,p2.y,t)})}
+positions.push({x:pts[pts.length-1].x,y:pts[pts.length-1].y});
+const m=WALL_THICKNESS+10;
+for(const p of positions)if(p.x>m&&p.x<WORLD_W-m&&p.y>m&&p.y<WORLD_H-m)apples.push(new Apple(p.x,p.y));
+}
+
+function spawnPlayer(){const m=WALL_THICKNESS+120;player=new Snake(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),'#4da6ff',true);player.name=myPlayerName}
+
+function initGame(){
+score=0;gameTime=0;isBoosting=false;powerBoostTimer=0;shieldTimer=0;respawnQueue=[];
+apples=[];powerUps=[];aiSnakes=[];bullets=[];bulletPickups=[];
+for(let i=0;i<TOTAL_APPLES;i++)apples.push(createApple());
+for(let i=0;i<POWERUP_COUNT_BOOST;i++)powerUps.push(createPowerUp('boost'));
+for(let i=0;i<POWERUP_COUNT_SHIELD;i++)powerUps.push(createPowerUp('shield'));
+if(roomSettings.bossMode){
+const m=WALL_THICKNESS+200;
+boss=new Boss(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m));
+for(let i=0;i<3;i++)aiSnakes.push(spawnAI());
+for(let i=0;i<BULLET_PICKUP_COUNT;i++)bulletPickups.push(createBulletPickup());
+bulletDisplay.style.display='block';bossHpDisplay.style.display='block';bossHpEl.textContent=boss.hp;shootBtnContainer.classList.add('show');
+} else {
+boss=null;
+for(let i=0;i<4;i++)aiSnakes.push(spawnAI());
+bulletDisplay.style.display='none';bossHpDisplay.style.display='none';shootBtnContainer.classList.remove('show');
+}
+spawnPlayer();
+camera.x=player.head.x;camera.y=player.head.y;camera.targetX=player.head.x;camera.targetY=player.head.y;
+if(isMultiplayer&&isHost){
+for(const id in remotePlayers){
+const rp=remotePlayers[id];
+const m2=WALL_THICKNESS+120;
+rp.snake=new Snake(randRange(m2,WORLD_W-m2),randRange(m2,WORLD_H-m2),'#ff9800',false);
+rp.snake.name=rp.name;rp.score=0;rp.bulletAmmo=0;rp.shieldTimer=0;rp.powerBoostTimer=0;
+}
+}
+window._myBulletAmmo=0;shootCooldown=0;updateUI();updateGoldUI();
+}
+
+function updateUI(){
+scoreDisplay.textContent=score;
+if(player)lengthDisplay.textContent='📏 长度: '+player.length;
+if(roomSettings.bossMode){bulletCount.textContent=window._myBulletAmmo||0;if(boss)bossHpEl.textContent=boss.hp;}
+let h='';
+if(powerBoostTimer>0)h+='<span class="effect-tag effect-boost">⚡ 加速 '+Math.ceil(powerBoostTimer)+'s</span>';
+if(shieldTimer>0)h+='<span class="effect-tag effect-shield">🛡️ 无敌 '+Math.ceil(shieldTimer)+'s</span>';
+if(isBoosting)h+='<span class="effect-tag effect-boost">🔥 加速中</span>';
+effectIndicator.innerHTML=h;
+}
+
+function checkHeadBodyCollision(head,other,ex){if(ex===undefined)ex=true;const pts=other.getBodyPoints(ex);const thr=SNAKE_WIDTH*1.1;for(let i=0;i<pts.length;i++){const p=pts[i];if((head.x-p.x)**2+(head.y-p.y)**2<thr*thr)return true}return false}
+function checkHeadToHead(a,b){return(a.head.x-b.head.x)**2+(a.head.y-b.head.y)**2<(SNAKE_WIDTH*1.3)**2}
+
+function tryFireBullet(){
+if(shootCooldown>0)return;
+if(!roomSettings.bossMode)return;
+if((window._myBulletAmmo||0)<=0)return;
+if(!player||!player.alive)return;
+window._myBulletAmmo--;shootCooldown=SHOOT_COOLDOWN;
+const sp=player.head;
+const nx=sp.x+Math.cos(player.dir)*(SNAKE_WIDTH+4);
+const ny=sp.y+Math.sin(player.dir)*(SNAKE_WIDTH+4);
+if(isHost){bullets.push(new Bullet(nx,ny,player.dir));}
+else{publishMsg({type:'bullet_fire',x:nx,y:ny,dir:player.dir,from:myMqttId});bullets.push(new Bullet(nx,ny,player.dir));}
+sfx.shoot();updateUI();
+}
+
+// ==================== 房主/单人 主逻辑 ====================
+function processGame(dt){
+if(gameState!=='playing'||!player)return;
+gameTime+=dt;
+if(shootCooldown>0)shootCooldown-=dt;
+
+// 玩家自己活着才更新自己
+if(player.alive){
+isBoosting=boostPressed;
+if(powerBoostTimer>0)powerBoostTimer-=dt;
+if(shieldTimer>0)shieldTimer-=dt;
+let spd=NORMAL_SPEED;
+if(isBoosting)spd*=BOOST_SPEED_MULT;
+if(powerBoostTimer>0)spd*=POWER_BOOST_MULT;
+player.speed=spd;
+const mag=Math.hypot(inputDir.x,inputDir.y);
+if(mag>0.15){const t=Math.atan2(inputDir.y,inputDir.x);let d=t-player.dir;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;player.dir+=clamp(d,-TURN_RATE*dt,TURN_RATE*dt)}
+player.update(dt);player.clampToBounds();
+for(let i=0;i<apples.length;i++){
+  const a=apples[i];
+  if(dist(player.head,a)<APPLE_RADIUS+SNAKE_WIDTH/2){
+    sfx.eat();player.grow(2);score++;
+    a.x=randRange(WALL_THICKNESS+30,WORLD_W-WALL_THICKNESS-30);
+    a.y=randRange(WALL_THICKNESS+30,WORLD_H-WALL_THICKNESS-30);
+    // 普通模式：吃满50 → 奖励 + 大弹窗 + 随机重生 + 长度归零
+    // 无尽模式：不触发，继续无限长大
+    if(!roomSettings.endlessMode && score>=APPLE_GOAL){
+      score=0;
+      addGold(APPLE_REWARD);
+      sfx.coin();
+      showPopupBig('🎉 成功收集 '+APPLE_GOAL+' 个苹果！', '已奖励 '+APPLE_REWARD+'💰<br>蛇已重生到随机位置，长度重置为初始状态');
+      player.respawn();
+      camera.x=player.head.x;camera.y=player.head.y;
+      camera.targetX=player.head.x;camera.targetY=player.head.y;
+      window._myBulletAmmo=0;
+      updateUI();
+    }
+  }
+}
+for(let i=0;i<powerUps.length;i++){const pu=powerUps[i];if(pu.collected)continue;if(dist(player.head,pu)<pu.radius+SNAKE_WIDTH/2){pu.collected=true;sfx.powerUp();if(pu.type==='boost')powerBoostTimer=POWER_BOOST_DURATION;else{shieldTimer=SHIELD_DURATION;sfx.shield()}respawnQueue.push({type:pu.type,timer:RESPAWN_DELAY})}}
+if(roomSettings.bossMode){for(let i=bulletPickups.length-1;i>=0;i--){const bp=bulletPickups[i];if(dist(player.head,bp)<bp.radius+SNAKE_WIDTH/2){window._myBulletAmmo=(window._myBulletAmmo||0)+1;bulletPickups.splice(i,1);sfx.pickup();}}}
+}
+
+// 道具重生
+for(let i=respawnQueue.length-1;i>=0;i--){respawnQueue[i].timer-=dt;if(respawnQueue[i].timer<=0){const np=createPowerUp(respawnQueue[i].type);let rep=false;for(let j=0;j<powerUps.length;j++){const pu=powerUps[j];if(pu.collected&&pu.type===respawnQueue[i].type){pu.x=np.x;pu.y=np.y;pu.collected=false;rep=true;break}}if(!rep)powerUps.push(np);respawnQueue.splice(i,1)}}
+if(roomSettings.bossMode){while(bulletPickups.length<BULLET_PICKUP_COUNT)bulletPickups.push(createBulletPickup());}
+
+// 远程玩家更新
+const remoteIds=Object.keys(remotePlayers);
+for(let ri=0;ri<remoteIds.length;ri++){
+const id=remoteIds[ri];const rp=remotePlayers[id];const rs=rp.snake;
+if(!rs||!rs.alive)continue;
+if(rp.shieldTimer>0)rp.shieldTimer-=dt;
+if(rp.powerBoostTimer>0)rp.powerBoostTimer-=dt;
+const m2=Math.hypot(rp.inputDir.x,rp.inputDir.y);
+if(m2>0.15){const t=Math.atan2(rp.inputDir.y,rp.inputDir.x);let d=t-rs.dir;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;rs.dir+=clamp(d,-TURN_RATE*dt,TURN_RATE*dt)}
+let rsp=NORMAL_SPEED;
+if(rp.boostPressed)rsp*=BOOST_SPEED_MULT;
+if(rp.powerBoostTimer>0)rsp*=POWER_BOOST_MULT;
+rs.speed=rsp;
+rs.update(dt);rs.clampToBounds();
+for(let i=0;i<apples.length;i++){
+  const a=apples[i];
+  if(dist(rs.head,a)<APPLE_RADIUS+SNAKE_WIDTH/2){
+    rs.grow(2);rp.score++;
+    a.x=randRange(WALL_THICKNESS+30,WORLD_W-WALL_THICKNESS-30);
+    a.y=randRange(WALL_THICKNESS+30,WORLD_H-WALL_THICKNESS-30);
+    // 普通模式：远程玩家吃满50 → 房主端重生 + 通知他加钱弹窗
+    if(!roomSettings.endlessMode && rp.score>=APPLE_GOAL){
+      rp.score=0;
+      rs.respawn();
+      rp.bulletAmmo=0;
+      publishMsg({type:'apple_reward', to:id, amount:APPLE_REWARD, from:myMqttId});
+    }
+  }
+}
+for(let i=0;i<powerUps.length;i++){const pu=powerUps[i];if(pu.collected)continue;if(dist(rs.head,pu)<pu.radius+SNAKE_WIDTH/2){pu.collected=true;respawnQueue.push({type:pu.type,timer:RESPAWN_DELAY});if(pu.type==='boost')rp.powerBoostTimer=POWER_BOOST_DURATION;else rp.shieldTimer=SHIELD_DURATION;}}
+if(roomSettings.bossMode){for(let i=bulletPickups.length-1;i>=0;i--){const bp=bulletPickups[i];if(dist(rs.head,bp)<bp.radius+SNAKE_WIDTH/2){rp.bulletAmmo=(rp.bulletAmmo||0)+1;bulletPickups.splice(i,1);}}}
+// 远程玩家撞 AI
+for(let i=0;i<aiSnakes.length;i++){
+const ai=aiSnakes[i];if(!ai.alive)continue;
+if(rp.shieldTimer>0){
+if(checkHeadBodyCollision(ai.head,rs,true)||checkHeadToHead(rs,ai)){ai.alive=false;spawnSnakeShapeApples(ai);sfx.death()}
+} else {
+if(checkHeadBodyCollision(rs.head,ai,false)){rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp.name);break}
+}
+}
+// 远程玩家撞 Boss（无敌不死）
+if(roomSettings.bossMode&&boss&&boss.alive&&rs.alive&&rp.shieldTimer<=0){
+if(dist(rs.head,{x:boss.x,y:boss.y})<BOSS_RADIUS+SNAKE_WIDTH/2){
+rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp.name);
+}
+}
+// 远程玩家 vs 本地玩家
+if(!roomSettings.bossMode&&rs.alive&&player&&player.alive){
+if(shieldTimer>0){
+if(checkHeadBodyCollision(rs.head,player,false)||checkHeadToHead(rs,player)){rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp.name);}
+} else if(rp.shieldTimer>0){
+if(checkHeadBodyCollision(player.head,rs,false)||checkHeadToHead(rs,player)){player.alive=false;onPlayerDeath(myPlayerName);endGameForMe();}
+} else {
+if(checkHeadToHead(rs,player)){
+if(rs.length>player.length){player.alive=false;onPlayerDeath(myPlayerName);endGameForMe()}
+else if(rs.length<player.length){rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp.name)}
+else{rs.alive=false;player.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp.name);onPlayerDeath(myPlayerName);endGameForMe()}
+} else if(shieldTimer<=0&&checkHeadBodyCollision(rs.head,player,false)){
+rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp.name);
+}
+}
+}
+}
+
+// 本地玩家撞远程玩家
+if(!roomSettings.bossMode&&player&&player.alive){
+for(let ri=0;ri<remoteIds.length;ri++){
+const rp2=remotePlayers[remoteIds[ri]];const rs=rp2.snake;
+if(!rs||!rs.alive)continue;
+if(shieldTimer>0){
+if(checkHeadBodyCollision(rs.head,player,false)||checkHeadToHead(player,rs)){rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp2.name);}
+} else if(rp2.shieldTimer>0){
+if(checkHeadBodyCollision(player.head,rs,false)||checkHeadToHead(player,rs)){player.alive=false;onPlayerDeath(myPlayerName);endGameForMe();}
+} else {
+if(checkHeadToHead(player,rs)){
+if(player.length>rs.length){rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp2.name)}
+else if(player.length<rs.length){player.alive=false;onPlayerDeath(myPlayerName);endGameForMe()}
+else{player.alive=false;rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(myPlayerName);onPlayerDeath(rp2.name);endGameForMe()}
+} else if(checkHeadBodyCollision(player.head,rs,false)){
+player.alive=false;onPlayerDeath(myPlayerName);endGameForMe();
+}
+}
+}
+}
+
+// AI 更新
+for(let i=0;i<aiSnakes.length;i++){
+const ai=aiSnakes[i];if(!ai.alive)continue;
+let target=null,bd=400;
+for(let k=0;k<apples.length;k++){const a=apples[k];const d=dist(ai.head,a);if(d<bd){bd=d;target=a}}
+for(let k=0;k<powerUps.length;k++){const pu=powerUps[k];if(pu.collected)continue;const d=dist(ai.head,pu);if(d<bd*1.2&&d<500){bd=d;target={x:pu.x,y:pu.y}}}
+if(target)ai.steerToward(target.x,target.y,AI_TURN_RATE);
+else{ai.aiWanderTimer=(ai.aiWanderTimer||0)-dt;if(ai.aiWanderTimer<=0){ai.aiWanderTimer=randRange(1.5,3);ai.aiWanderDir=randRange(0,Math.PI*2)}ai.steerToward(ai.head.x+Math.cos(ai.aiWanderDir)*200,ai.head.y+Math.sin(ai.aiWanderDir)*200,AI_TURN_RATE*0.7)}
+const fx=ai.head.x+Math.cos(ai.dir)*80,fy=ai.head.y+Math.sin(ai.dir)*80;const m=WALL_THICKNESS+30;
+if(fx<m||fx>WORLD_W-m||fy<m||fy>WORLD_H-m)ai.dir+=randRange(1.5,3)*(Math.random()>0.5?1:-1);
+ai.update(dt);ai.clampToBounds();
+for(let k=0;k<apples.length;k++){const a=apples[k];if(dist(ai.head,a)<APPLE_RADIUS+SNAKE_WIDTH/2){ai.grow(2);a.x=randRange(WALL_THICKNESS+30,WORLD_W-WALL_THICKNESS-30);a.y=randRange(WALL_THICKNESS+30,WORLD_H-WALL_THICKNESS-30)}}
+for(let k=0;k<powerUps.length;k++){const pu=powerUps[k];if(pu.collected)continue;if(dist(ai.head,pu)<pu.radius+SNAKE_WIDTH/2){pu.collected=true;respawnQueue.push({type:pu.type,timer:RESPAWN_DELAY});if(pu.type==='boost'){ai.speed=AI_SPEED*1.6;setTimeout((function(a){return function(){if(a.alive)a.speed=AI_SPEED}})(ai),15000)}}}
+if(ai.checkSelfCollision())ai.alive=false;
+}
+
+// AI 与本地玩家碰撞（本地玩家有 shield 时撞死 AI）
+const deaths=[];
+for(let i=0;i<aiSnakes.length;i++){
+const ai=aiSnakes[i];if(!ai.alive)continue;
+if(player&&player.alive){
+if(shieldTimer>0){
+if(checkHeadBodyCollision(ai.head,player,true)||checkHeadToHead(player,ai)){ai.alive=false;deaths.push(ai);sfx.death()}
+} else {
+if(checkHeadBodyCollision(player.head,ai,false)||checkHeadToHead(player,ai)){player.alive=false;onPlayerDeath(myPlayerName);endGameForMe();continue}
+}
+if(checkHeadBodyCollision(ai.head,player,true)){ai.alive=false;deaths.push(ai);sfx.death()}
+}
+}
+for(let i=0;i<aiSnakes.length;i++){
+if(!aiSnakes[i].alive)continue;
+for(let j=i+1;j<aiSnakes.length;j++){
+if(!aiSnakes[j].alive)continue;
+if(checkHeadToHead(aiSnakes[i],aiSnakes[j])){aiSnakes[i].alive=false;aiSnakes[j].alive=false;deaths.push(aiSnakes[i],aiSnakes[j]);sfx.death()}
+if(checkHeadBodyCollision(aiSnakes[i].head,aiSnakes[j],false)){aiSnakes[i].alive=false;deaths.push(aiSnakes[i]);sfx.death()}
+if(checkHeadBodyCollision(aiSnakes[j].head,aiSnakes[i],false)){aiSnakes[j].alive=false;deaths.push(aiSnakes[j]);sfx.death()}
+}
+}
+for(let i=0;i<deaths.length;i++)spawnSnakeShapeApples(deaths[i]);
+for(let i=aiSnakes.length-1;i>=0;i--)if(!aiSnakes[i].alive)aiSnakes.splice(i,1);
+while(aiSnakes.length<(roomSettings.bossMode?3:4))aiSnakes.push(spawnAI());
+
+// Boss 更新
+if(roomSettings.bossMode&&boss&&boss.alive){
+const targets=[];
+if(player&&player.alive)targets.push(player);
+for(const id in remotePlayers){const rp=remotePlayers[id];if(rp.snake&&rp.snake.alive)targets.push(rp.snake)}
+boss.update(dt,targets);
+// 本地玩家撞 Boss（无敌不死）
+if(player&&player.alive&&shieldTimer<=0&&dist(player.head,{x:boss.x,y:boss.y})<BOSS_RADIUS+SNAKE_WIDTH/2){
+player.alive=false;onPlayerDeath(myPlayerName);endGameForMe();
+}
+// 远程玩家撞 Boss（无敌不死）
+for(const id in remotePlayers){
+const rp=remotePlayers[id];const rs=rp.snake;
+if(!rs||!rs.alive)continue;
+if((rp.shieldTimer||0)>0)continue;
+if(dist(rs.head,{x:boss.x,y:boss.y})<BOSS_RADIUS+SNAKE_WIDTH/2){
+rs.alive=false;spawnSnakeShapeApples(rs);onPlayerDeath(rp.name);
+}
+}
+}
+
+// 子弹更新
+if(roomSettings.bossMode){
+for(let i=bullets.length-1;i>=0;i--){
+const b=bullets[i];
+b.update(dt);
+if(!b.alive){bullets.splice(i,1);continue}
+if(boss&&boss.alive){
+if(dist(b,{x:boss.x,y:boss.y})<BOSS_RADIUS+BULLET_RADIUS){
+boss.hp-=BULLET_DAMAGE;bullets.splice(i,1);sfx.hit();
+publishMsg({type:'boss_hp',hp:boss.hp,from:myMqttId});
+if(boss.hp<=0){
+  boss.alive=false;gameState='over';
+  addGold(BOSS_REWARD);
+  sfx.coin();
+  showPopupBig('🏆 击杀婉芬！', '全队每人 +'+BOSS_REWARD+'💰');
+  modalTitle.textContent='🏆 全队胜利！';
+  modalSub.textContent='婉芬被击败！全队获得 '+BOSS_REWARD+'💰';
+  gameOverModal.classList.add('show');sfx.win();
+  publishMsg({type:'boss_dead',from:myMqttId});
+}
+continue;
+}
+}
+}
+}
+
+for(let i=0;i<apples.length;i++)apples[i].update(dt);
+for(let i=0;i<powerUps.length;i++)powerUps[i].update(dt);
+for(let i=0;i<bulletPickups.length;i++)bulletPickups[i].update(dt);
+
+if(player&&player.alive){
+camera.targetX=player.head.x;camera.targetY=player.head.y;
+camera.x=lerp(camera.x,camera.targetX,0.18);camera.y=lerp(camera.y,camera.targetY,0.18);
+const hw=viewW/2,hh=viewH/2;
+camera.x=clamp(camera.x,hw,WORLD_W-hw);camera.y=clamp(camera.y,hh,WORLD_H-hh);
+}
+updateUI();
+}
+
+function onPlayerDeath(name){
+if(!isHost)return;
+if(!deathCounts[name])deathCounts[name]=0;
+deathCounts[name]++;
+publishMsg({type:'death_event',name:name,from:myMqttId});
+updateDeathStatsUI();
+}
+
+function endGameForMe(){
+gameState='over';
+modalTitle.textContent='💀 你死了';
+modalSub.textContent='分数：'+score;
+gameOverModal.classList.add('show');
+sfx.death();
+joystickContainer.style.display='none';
+boostBtnContainer.style.display='none';
+shootBtnContainer.style.display='none';
+}
+
+function restartGame(){
+gameOverModal.classList.remove('show');
+if(!player)return;
+joystickContainer.style.display='';
+boostBtnContainer.style.display='';
+if(roomSettings.bossMode)shootBtnContainer.style.display='';
+if(isMultiplayer&&!isHost){
+publishMsg({type:'request_respawn',from:myMqttId});
+player.respawn();score=0;window._myBulletAmmo=0;gameState='playing';
+} else {
+player.respawn();score=0;window._myBulletAmmo=0;gameState='playing';
+}
+}
+
+function renderPlayerList(container,list){
+if(!container)return;
+let h='';
+for(let i=0;i<list.length;i++){
+const p=list[i];
+const canKick=isHost&&!p.isHost;
+h+='<div class="player-row">';
+h+='<img class="player-avatar" src="'+safeImgSrc(p.avatar)+'" onerror="this.onerror=null;this.src=\''+DEFAULT_AVATAR+'\'">';
+h+='<span class="player-name">'+escapeHtml(p.name)+(p.isHost?' 👑':'')+'</span>';
+if(canKick){h+='<button class="kick-btn" data-id="'+p.id+'">✕</button>';}
+h+='</div>';
+}
+if(h==='')h='<div style="color:#666;font-size:.78rem;text-align:center;padding:8px;">暂无玩家</div>';
+container.innerHTML=h;
+const btns=container.querySelectorAll('.kick-btn');
+for(let i=0;i<btns.length;i++){btns[i].addEventListener('click',function(){kickPlayer(this.dataset.id)});}
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
+function updateAllPlayerLists(){
+renderPlayerList(roomPlayerList,currentPlayerList);
+renderPlayerList(pausePlayerList,currentPlayerList);
+}
+
+function kickPlayer(targetId){
+if(!isHost)return;
+if(!remotePlayers[targetId])return;
+publishMsg({type:'kick',from:myMqttId,to:targetId});
+delete remotePlayers[targetId];
+netPlayerCount=Math.max(1,netPlayerCount-1);
+updateNetStatus();
+currentPlayerList=currentPlayerList.filter(function(p){return p.id!==targetId});
+updateAllPlayerLists();
+broadcastPlayerList();
+}
+
+function broadcastPlayerList(){
+if(!isHost)return;
+const list=[{id:myMqttId,name:myPlayerName,avatar:playerAvatar,isHost:true}];
+for(const id in remotePlayers){
+const rp=remotePlayers[id];
+list.push({id:id,name:rp.name,avatar:rp.avatar||DEFAULT_AVATAR,isHost:false});
+}
+currentPlayerList=list;
+updateAllPlayerLists();
+publishMsg({type:'player_list',from:myMqttId,list:list});
+}
+
+// ==================== 网络质量 ====================
+function updateNetPingDisplay(){
+if(!isMultiplayer){netQualityEl.classList.remove('show');return}
+netQualityEl.classList.add('show');
+if(isHost){netPingEl.textContent='本地';netQualityEl.className='show';return}
+if(netPing<=0){netPingEl.textContent='--';netQualityEl.className='show';}
+else if(netPing<100){netPingEl.textContent=netPing+'ms';netQualityEl.className='show';}
+else if(netPing<250){netPingEl.textContent=netPing+'ms';netQualityEl.className='show medium';}
+else{netPingEl.textContent=netPing+'ms';netQualityEl.className='show bad';}
+}
+
+// ==================== MQTT ====================
+function initNetwork(roomCode,asHost){
+if(mqttClient){try{mqttClient.end(true)}catch(e){}mqttClient=null}
+myRoomCodeStr=roomCode;isHost=asHost;isMultiplayer=true;
+remotePlayers={};remoteSnakes={};netPlayerCount=1;helloAckReceived=false;
+deathCounts={};currentPlayerList=[];netPing=0;
+mqttTopic='snake-royale-v4/room/'+roomCode;
+mqttClient=mqtt.connect(MQTT_BROKER,{clientId:myMqttId,clean:true,reconnectPeriod:3000,connectTimeout:10000,keepalive:30});
+mqttClient.on('connect',function(){
+netDot.classList.remove('disconnected');
+mqttClient.subscribe(mqttTopic,{qos:0},function(err){
+if(err)return;
+if(isHost){myPlayerName=playerName;publishMsg({type:'hello',from:myMqttId,isHost:true,name:playerName,avatar:playerAvatar})}
+else{publishMsg({type:'hello',from:myMqttId,isHost:false,name:playerName,avatar:playerAvatar})}
+});
+});
+mqttClient.on('message',function(topic,payload){
+try{const msg=JSON.parse(payload.toString());if(msg.from===myMqttId)return;handleNetMessage(msg)}catch(e){}
+});
+mqttClient.on('error',function(){netDot.classList.add('disconnected')});
+mqttClient.on('close',function(){netDot.classList.add('disconnected')});
+updateNetStatus();
+updateNetPingDisplay();
+}
+function publishMsg(obj){if(!mqttClient||!mqttClient.connected)return;mqttClient.publish(mqttTopic,JSON.stringify(obj),{qos:0})}
+
+function handleNetMessage(msg){
+if(msg.type==='ping'&&isHost){publishMsg({type:'pong',t:msg.t,to:msg.from,from:myMqttId});return}
+if(msg.type==='pong'&&msg.to===myMqttId){netPing=Date.now()-msg.t;updateNetPingDisplay();return}
+if(msg.type==='hello'){
+if(!isHost)return;
+if(remotePlayers[msg.from])return;
+if(netPlayerCount>=MAX_PLAYERS){publishMsg({type:'room_full',to:msg.from,from:myMqttId});return}
+netPlayerCount++;
+const name = msg.name || ('玩家'+netPlayerCount);
+const avatar = msg.avatar || 'mo.png';
+const m=WALL_THICKNESS+120;
+const newSnake=new Snake(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),'#ff9800',false);
+newSnake.name=name;
+remotePlayers[msg.from]={name:name,avatar:avatar,inputDir:{x:0,y:0},boostPressed:false,snake:newSnake,score:0,bulletAmmo:0,shieldTimer:0,powerBoostTimer:0};
+updateNetStatus();
+publishMsg({type:'hello_ack',to:msg.from,from:myMqttId,playerCount:netPlayerCount,name:name,settings:roomSettings});
+broadcastPlayerList();
+if(gameStarted&&player)setTimeout(function(){broadcastGameState()},200);
+return;
+}
+if(msg.type==='hello_ack'){
+if(msg.to!==myMqttId)return;
+helloAckReceived=true;
+netPlayerCount=msg.playerCount||2;
+if(msg.settings)roomSettings=msg.settings;
+applyRoomSettingsToUI();
+updateNetStatus();
+joinStatus.textContent='✅ 已连接！等待房主开始…';
+joinRoomDisplay.classList.remove('show');
+lobbyButtons.style.display='none';
+mainLogo.style.display='none';
+roomCodeDisplay.classList.add('show');
+myRoomCode.textContent=myRoomCodeStr;
+btnStartGame.style.display='none';
+btnHostBack.style.display='none';
+btnGuestLeave.style.display='inline-block';
+roomStatus.textContent='👀 等待房主开始游戏…';
+return;
+}
+if(msg.type==='player_list'){currentPlayerList=msg.list||[];updateAllPlayerLists();return}
+if(msg.type==='kick'){if(msg.to!==myMqttId)return;alert('你已被房主移出房间');resetToLobby();return}
+if(msg.type==='room_full'){if(msg.to!==myMqttId)return;joinStatus.textContent='❌ 房间已满（最多20人）';netStatusBar.classList.remove('show');if(mqttClient){try{mqttClient.end(true)}catch(e){}mqttClient=null}return}
+if(msg.type==='game_state'&&!isHost){applyGameState(msg);return}
+if(msg.type==='input'&&isHost){if(remotePlayers[msg.from]){remotePlayers[msg.from].inputDir=msg.inputDir;remotePlayers[msg.from].boostPressed=msg.boostPressed}return}
+if(msg.type==='bullet_fire'&&isHost){
+if(roomSettings.bossMode&&remotePlayers[msg.from]){
+const rp=remotePlayers[msg.from];
+if((rp.bulletAmmo||0)>0)rp.bulletAmmo--;
+bullets.push(new Bullet(msg.x,msg.y,msg.dir));
+sfx.shoot();
+}
+return;
+}
+if(msg.type==='death_event'){if(!deathCounts[msg.name])deathCounts[msg.name]=0;deathCounts[msg.name]++;if(pauseModal.classList.contains('show'))updateDeathStatsUI();return}
+if(msg.type==='boss_hp'&&!isHost){if(boss)boss.hp=msg.hp;if(boss&&boss.hp>0)bossHpEl.textContent=boss.hp;return}
+// 客机收到"吃满苹果奖励"
+if(msg.type==='apple_reward' && msg.to===myMqttId){
+  addGold(msg.amount||APPLE_REWARD);
+  sfx.coin();
+  showPopupBig('🎉 成功收集 '+APPLE_GOAL+' 个苹果！', '已奖励 '+APPLE_REWARD+'💰<br>蛇已重生到随机位置，长度重置为初始状态');
+  if(player){
+    player.respawn();
+    score=0;
+    window._myBulletAmmo=0;
+    camera.x=player.head.x;camera.y=player.head.y;
+    camera.targetX=player.head.x;camera.targetY=player.head.y;
+    updateUI();
+  }
+  return;
+}
+// 客机收到"Boss死亡，全队+250"
+if(msg.type==='boss_dead'&&!isHost){
+  gameState='over';
+  addGold(BOSS_REWARD);
+  sfx.coin();
+  showPopupBig('🏆 击杀婉芬！', '全队每人 +'+BOSS_REWARD+'💰');
+  modalTitle.textContent='🏆 全队胜利！';
+  modalSub.textContent='婉芬被击败！全队获得 '+BOSS_REWARD+'💰';
+  gameOverModal.classList.add('show');
+  sfx.win();
+  return;
+}
+// 房主处理客机商店购买
+if(msg.type==='buy_item' && isHost){
+  const rp = remotePlayers[msg.from];
+  if(!rp) return;
+  if(msg.item==='boost') rp.powerBoostTimer = POWER_BOOST_DURATION;
+  else if(msg.item==='shield') rp.shieldTimer = SHIELD_DURATION;
+  else if(msg.item==='bullet') rp.bulletAmmo = (rp.bulletAmmo||0) + 10;
+  return;
+}
+if(msg.type==='start_game'&&!isHost){
+if(msg.settings)roomSettings=msg.settings;
+applyRoomSettingsToUI();
+gameStarted=true;gameState='playing';
+lobbyScreen.classList.add('hidden');
+document.body.classList.add('in-game');
+aiSnakes=[];apples=[];powerUps=[];bullets=[];bulletPickups=[];remoteSnakes={};boss=null;
+if(roomSettings.bossMode){bulletDisplay.style.display='block';bossHpDisplay.style.display='block';shootBtnContainer.classList.add('show')}
+updateNetPingDisplay();
+return;
+}
+if(msg.type==='request_respawn'&&isHost){const rp=remotePlayers[msg.from];if(rp&&rp.snake){rp.snake.respawn();rp.score=0;rp.bulletAmmo=0;rp.shieldTimer=0;rp.powerBoostTimer=0;rp.snake.name=rp.name}return}
+if(msg.type==='leave'){if(!isHost)return;if(remotePlayers[msg.from]){delete remotePlayers[msg.from];netPlayerCount=Math.max(1,netPlayerCount-1);updateNetStatus();broadcastPlayerList()}return}
+}
+
+function broadcastGameState(){
+if(!mqttClient||!isHost||!player)return;
+const ps={};
+ps[myMqttId]={s:player.serializeFlat(),d:Math.round(player.dir*100)/100,a:player.alive?1:0,sc:score,c:player.color,n:myPlayerName,b:window._myBulletAmmo||0};
+const remoteIds=Object.keys(remotePlayers);
+for(let i=0;i<remoteIds.length;i++){
+const id=remoteIds[i];const rp=remotePlayers[id];if(!rp.snake)continue;
+ps[id]={s:rp.snake.serializeFlat(),d:Math.round(rp.snake.dir*100)/100,a:rp.snake.alive?1:0,sc:rp.score,c:rp.snake.color,n:rp.name,b:rp.bulletAmmo||0};
+}
+const aiArr=[];
+for(let i=0;i<aiSnakes.length;i++)if(aiSnakes[i].alive)aiArr.push(aiSnakes[i].serializeFlat());
+const apArr=[];
+for(let i=0;i<apples.length;i++){apArr.push(Math.round(apples[i].x),Math.round(apples[i].y))}
+const puArr=[];
+for(let i=0;i<powerUps.length;i++){const p=powerUps[i];if(p.collected)continue;puArr.push(Math.round(p.x),Math.round(p.y),p.type==='boost'?0:1)}
+let bossData=null;
+if(roomSettings.bossMode&&boss){bossData={x:Math.round(boss.x),y:Math.round(boss.y),d:Math.round(boss.dir*100)/100,hp:boss.hp,a:boss.alive?1:0};}
+const bulArr=[];
+for(let i=0;i<bullets.length;i++){const b=bullets[i];bulArr.push(Math.round(b.x),Math.round(b.y),Math.round(b.dir*100)/100)}
+const bpArr=[];
+for(let i=0;i<bulletPickups.length;i++){const bp=bulletPickups[i];bpArr.push(Math.round(bp.x),Math.round(bp.y))}
+publishMsg({type:'game_state',from:myMqttId,ps:ps,ai:aiArr,ap:apArr,pu:puArr,boss:bossData,bl:bulArr,bp:bpArr,gs:gameStarted?1:0,pc:1+remoteIds.length});
+}
+
+function applyGameState(state){
+if(isHost)return;
+if(state.pc!==undefined){netPlayerCount=state.pc;updateNetStatus()}
+if(!state.ps)return;
+const myData=state.ps[myMqttId];
+if(myData){
+const amAlive = myData.a===1;
+// ★ 客机自己死了 → 弹死亡窗（只弹一次，靠 gameState!=='playing' 判断）
+if(!amAlive && gameState==='playing'){
+  gameState='over';
+  modalTitle.textContent='💀 你死了';
+  modalSub.textContent='分数：'+score;
+  gameOverModal.classList.add('show');
+  sfx.death();
+  joystickContainer.style.display='none';
+  boostBtnContainer.style.display='none';
+  shootBtnContainer.style.display='none';
+}
+if(!player||player.segments.length!==myData.s.length/2){
+player=Snake.deserializeFlat(myData.s,myData.d,amAlive,myData.c,myPlayerName,true);
+camera.x=player.head.x;camera.y=player.head.y;
+camera.targetX=player.head.x;camera.targetY=player.head.y;
+} else {player.setTarget(myData.s,myData.d,amAlive);}
+player.name=myPlayerName;
+score=myData.sc||0;window._myBulletAmmo=myData.b||0;
+scoreDisplay.textContent=score;
+if(player)lengthDisplay.textContent='📏 长度: '+player.length;
+}
+const newRemoteIds={};
+for(const id in state.ps){
+if(id===myMqttId)continue;
+newRemoteIds[id]=true;
+const pd=state.ps[id];
+if(remoteSnakes[id]){remoteSnakes[id].setTarget(pd.s,pd.d,pd.a===1);remoteSnakes[id].name=pd.n||'';}
+else{remoteSnakes[id]=Snake.deserializeFlat(pd.s,pd.d,pd.a===1,pd.c,pd.n,false);remoteSnakes[id].setTarget(pd.s,pd.d,pd.a===1);}
+}
+for(const id in remoteSnakes){if(!newRemoteIds[id])delete remoteSnakes[id]}
+if(!state.ai)state.ai=[];
+aiSnakes=[];
+for(let i=0;i<state.ai.length;i++){
+const s=Snake.deserializeFlat(state.ai[i],0,true,'#e74c3c','',false);
+s.targetSegments=[];
+for(let j=0;j<state.ai[i].length;j+=2)s.targetSegments.push({x:state.ai[i][j],y:state.ai[i][j+1]});
+aiSnakes.push(s);
+}
+const apFlat=state.ap||[];
+const apCount=apFlat.length/2;
+while(apples.length<apCount)apples.push(new Apple(0,0));
+apples.length=apCount;
+for(let i=0;i<apCount;i++){apples[i].x=apFlat[i*2];apples[i].y=apFlat[i*2+1]}
+const puFlat=state.pu||[];
+const puCount=puFlat.length/3;
+while(powerUps.length<puCount)powerUps.push(new PowerUp(0,0,'boost'));
+powerUps.length=puCount;
+for(let i=0;i<puCount;i++){powerUps[i].x=puFlat[i*3];powerUps[i].y=puFlat[i*3+1];powerUps[i].type=puFlat[i*3+2]===0?'boost':'shield';powerUps[i].collected=false}
+if(roomSettings.bossMode&&state.boss){
+if(!boss)boss=new Boss(state.boss.x,state.boss.y);
+boss.targetX=state.boss.x;boss.targetY=state.boss.y;
+boss.dir=state.boss.d;boss.hp=state.boss.hp;boss.alive=state.boss.a===1;
+boss.fleeing=boss.hp<=BOSS_FLEE_HP;
+bossHpEl.textContent=boss.hp;
+} else if(!roomSettings.bossMode){boss=null}
+if(roomSettings.bossMode){
+const blFlat=state.bl||[];
+const blCount=blFlat.length/3;
+const newBullets=[];
+for(let i=0;i<blCount;i++){newBullets.push(new Bullet(blFlat[i*3],blFlat[i*3+1],blFlat[i*3+2]));}
+if(bullets.length===newBullets.length){
+for(let i=0;i<bullets.length;i++){
+bullets[i].x=newBullets[i].x;bullets[i].y=newBullets[i].y;bullets[i].dir=newBullets[i].dir;
+bullets[i].vx=Math.cos(bullets[i].dir)*BULLET_SPEED;bullets[i].vy=Math.sin(bullets[i].dir)*BULLET_SPEED;
+}
+} else {bullets=newBullets;}
+const bpFlat=state.bp||[];
+const bpCount=bpFlat.length/2;
+while(bulletPickups.length<bpCount)bulletPickups.push(new BulletPickup(0,0));
+bulletPickups.length=bpCount;
+for(let i=0;i<bpCount;i++){bulletPickups[i].x=bpFlat[i*2];bulletPickups[i].y=bpFlat[i*2+1]}
+}
+if(state.gs&&!gameStarted){gameStarted=true;gameState='playing';lobbyScreen.classList.add('hidden');document.body.classList.add('in-game');updateNetPingDisplay()}
+}
+
+function updateNetStatus(){
+netRoomCode.textContent=myRoomCodeStr;
+netPlayerCountEl.textContent=netPlayerCount;
+if(netDot)netDot.className='dot';
+roomPlayers.textContent='👤 当前玩家：'+netPlayerCount+' / 20';
+if(isHost){if(netPlayerCount>=2)roomStatus.textContent='✅ '+netPlayerCount+' 人在房间，可以开始';else roomStatus.textContent='⏳ 等待玩家加入…';}
+}
+
+function updateDeathStatsUI(){
+if(!roomSettings.showDeath){deathStatsSection.style.display='none';return}
+deathStatsSection.style.display='block';
+const names=Object.keys(deathCounts);
+if(names.length===0){deathStatsList.innerHTML='<div class="death-stat-row"><span class="stat-name">暂无</span><span class="stat-count"></span></div>';return}
+let h='';
+names.sort(function(a,b){if(a===myPlayerName)return -1;if(b===myPlayerName)return 1;return a.localeCompare(b);});
+for(const n of names){h+='<div class="death-stat-row"><span class="stat-name">'+n+'</span><span class="stat-count">'+deathCounts[n]+' 次</span></div>';}
+deathStatsList.innerHTML=h;
+}
+
+function applyRoomSettingsToUI(){
+if(roomSettings.allowMinimap){minimapToggleRow.style.display='flex'}else{minimapToggleRow.style.display='none';showMinimap=false;minimapCheckbox.checked=false}
+if(roomSettings.endlessMode){endlessToggleRow.style.display='flex'}else{endlessToggleRow.style.display='none';endlessMode=false;endlessCheckbox.checked=false}
+if(roomSettings.showDeath)updateDeathStatsUI();else deathStatsSection.style.display='none';
+}
+
+// ==================== 商店 ====================
+function buyShopItem(item){
+  const prices = {boost:50, shield:60, bullet:40};
+  const p = prices[item] || 999;
+  if(gold < p){ showToast('💰 金币不足'); return; }
+  if(item === 'bullet' && !roomSettings.bossMode){ showToast('🔫 仅 Boss 模式可用'); return; }
+  gold -= p; saveGold(); updateGoldUI();
+  sfx.coin();
+  if(item === 'boost'){
+    if(isMultiplayer && !isHost){
+      publishMsg({type:'buy_item', item:'boost', from:myMqttId});
+    }
+    powerBoostTimer = POWER_BOOST_DURATION;
+    showToast('⚡ 已购买加速 30s');
+  } else if(item === 'shield'){
+    if(isMultiplayer && !isHost){
+      publishMsg({type:'buy_item', item:'shield', from:myMqttId});
+    }
+    shieldTimer = SHIELD_DURATION;
+    showToast('🛡️ 已购买护盾 15s');
+  } else if(item === 'bullet'){
+    if(isMultiplayer && !isHost){
+      publishMsg({type:'buy_item', item:'bullet', from:myMqttId});
+    }
+    window._myBulletAmmo = (window._myBulletAmmo||0) + 10;
+    updateUI();
+    showToast('🔫 子弹 +10');
+  }
+  updateUI();
+}
+
+// ==================== 渲染 ====================
+function drawRoundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath()}
+
+function drawMinimap(){
+if(!showMinimap)return;
+const mw=100,mh=70,mx=10,my=10;
+ctx.fillStyle='rgba(0,0,0,0.6)';drawRoundRect(mx,my,mw,mh,6);ctx.fill();
+ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;drawRoundRect(mx,my,mw,mh,6);ctx.stroke();
+ctx.fillStyle='rgba(240,240,240,0.5)';ctx.fillRect(mx+2,my+2,mw-4,mh-4);
+ctx.fillStyle='rgba(30,30,30,0.7)';
+const ww=WALL_THICKNESS/WORLD_W*mw,wh=WALL_THICKNESS/WORLD_H*mh;
+ctx.fillRect(mx,my,mw,wh);ctx.fillRect(mx,my+mh-wh,mw,wh);ctx.fillRect(mx,my,ww,mh);ctx.fillRect(mx+mw-ww,my,ww,mh);
+ctx.fillStyle='rgba(80,200,80,0.7)';
+for(let i=0;i<apples.length;i+=3){const a=apples[i];const ax=mx+a.x/WORLD_W*mw,ay=my+a.y/WORLD_H*mh;ctx.fillRect(ax-0.7,ay-0.7,1.4,1.4)}
+ctx.fillStyle='#e74c3c';
+for(let i=0;i<aiSnakes.length;i++){const ai=aiSnakes[i];if(!ai.alive)continue;const ax=mx+ai.head.x/WORLD_W*mw,ay=my+ai.head.y/WORLD_H*mh;ctx.beginPath();ctx.arc(ax,ay,1.8,0,Math.PI*2);ctx.fill()}
+if(roomSettings.bossMode&&boss&&boss.alive){const bx=mx+boss.x/WORLD_W*mw,by=my+boss.y/WORLD_H*mh;ctx.fillStyle='#ff00aa';ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);ctx.fill()}
+if(isHost){for(const id in remotePlayers){const rs=remotePlayers[id].snake;if(!rs||!rs.alive)continue;const ax=mx+rs.head.x/WORLD_W*mw,ay=my+rs.head.y/WORLD_H*mh;ctx.fillStyle='#ff9800';ctx.beginPath();ctx.arc(ax,ay,2.2,0,Math.PI*2);ctx.fill()}}
+else{for(const id in remoteSnakes){const rs=remoteSnakes[id];if(!rs.alive)continue;const ax=mx+rs.head.x/WORLD_W*mw,ay=my+rs.head.y/WORLD_H*mh;ctx.fillStyle='#ff9800';ctx.beginPath();ctx.arc(ax,ay,2.2,0,Math.PI*2);ctx.fill()}}
+if(player&&player.alive){const px=mx+player.head.x/WORLD_W*mw,py=my+player.head.y/WORLD_H*mh;ctx.fillStyle='#4da6ff';ctx.beginPath();ctx.arc(px,py,2.6,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();ctx.arc(px,py,3.2,0,Math.PI*2);ctx.stroke()}
+const vpX=mx+(camera.x-viewW/2)/WORLD_W*mw,vpY=my+(camera.y-viewH/2)/WORLD_H*mh,vpW=viewW/WORLD_W*mw,vpH=viewH/WORLD_H*mh;
+ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.lineWidth=1;ctx.strokeRect(clamp(vpX,mx,mx+mw-vpW),clamp(vpY,my,my+mh-vpH),vpW,vpH);
+}
+
+function drawSnakeBody(snake,col1,isPlayer){
+const segs=snake.segments;const n=segs.length;
+if(n<2){const sp=worldToScreen(snake.head.x,snake.head.y);ctx.fillStyle=col1;ctx.beginPath();ctx.arc(sp.x,sp.y,SNAKE_WIDTH/2,0,Math.PI*2);ctx.fill();return;}
+const step=n>60?2:1;
+ctx.strokeStyle=col1;ctx.lineWidth=SNAKE_WIDTH;ctx.lineCap='round';ctx.lineJoin='round';
+ctx.beginPath();
+let first=true;
+for(let i=0;i<n;i+=step){const s=segs[i];const sp=worldToScreen(s.x,s.y);if(first){ctx.moveTo(sp.x,sp.y);first=false}else ctx.lineTo(sp.x,sp.y);}
+if((n-1)%step!==0){const s=segs[n-1];const sp=worldToScreen(s.x,s.y);ctx.lineTo(sp.x,sp.y)}
+ctx.stroke();
+const hp=worldToScreen(snake.head.x,snake.head.y);const r=SNAKE_WIDTH/2+1;const eo=r*0.5;
+const ex1=hp.x+Math.cos(snake.dir-0.6)*eo,ey1=hp.y+Math.sin(snake.dir-0.6)*eo;
+const ex2=hp.x+Math.cos(snake.dir+0.6)*eo,ey2=hp.y+Math.sin(snake.dir+0.6)*eo;
+ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex1,ey1,r*0.36,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(ex2,ey2,r*0.36,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#111';ctx.beginPath();ctx.arc(ex1+Math.cos(snake.dir)*0.5,ey1+Math.sin(snake.dir)*0.5,r*0.18,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(ex2+Math.cos(snake.dir)*0.5,ey2+Math.sin(snake.dir)*0.5,r*0.18,0,Math.PI*2);ctx.fill();
+if(snake.name&&!isPlayer){ctx.fillStyle='rgba(0,0,0,0.75)';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(snake.name,hp.x,hp.y-SNAKE_WIDTH-3);}
+}
+
+function drawBoss(){
+if(!boss||!boss.alive)return;
+if(!isInView(boss.x,boss.y,80))return;
+const sp=worldToScreen(boss.x,boss.y);
+const ringColor=boss.fleeing?'rgba(255,200,0,0.35)':'rgba(255,0,100,0.25)';
+ctx.fillStyle=ringColor;ctx.beginPath();ctx.arc(sp.x,sp.y,BOSS_RADIUS+10+Math.sin(gameTime*4)*4,0,Math.PI*2);ctx.fill();
+if(bossImgLoaded){ctx.save();ctx.translate(sp.x,sp.y);ctx.rotate(boss.dir+Math.PI/2);ctx.drawImage(bossImg,-BOSS_RADIUS,-BOSS_RADIUS,BOSS_RADIUS*2,BOSS_RADIUS*2);ctx.restore();}
+else{
+ctx.fillStyle=boss.fleeing?'#cc8800':'#cc0066';ctx.beginPath();ctx.arc(sp.x,sp.y,BOSS_RADIUS,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle=boss.fleeing?'#ffcc44':'#ff44aa';ctx.lineWidth=3;ctx.stroke();
+ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(sp.x-8,sp.y-4,5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(sp.x+8,sp.y-4,5,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.beginPath();ctx.arc(sp.x-8,sp.y-4,2.5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(sp.x+8,sp.y-4,2.5,0,Math.PI*2);ctx.fill();
+}
+ctx.fillStyle=boss.fleeing?'#ffcc44':'#ff88cc';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+ctx.fillText(boss.fleeing?'婉芬（逃跑中）':'婉芬',sp.x,sp.y-BOSS_RADIUS-4);
+const bw=60,bh=6;
+ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(sp.x-bw/2,sp.y-BOSS_RADIUS-20,bw,bh);
+ctx.fillStyle=boss.fleeing?'#ffaa00':'#ff2266';
+ctx.fillRect(sp.x-bw/2+1,sp.y-BOSS_RADIUS-19,(bw-2)*(boss.hp/BOSS_HP_MAX),bh-2);
+}
+
+function render(){
+if(canvas.width!==viewW||canvas.height!==viewH){canvas.width=viewW;canvas.height=viewH;canvas.style.width=viewW+'px';canvas.style.height=viewH+'px'}
+ctx.fillStyle='#f5f5f0';ctx.fillRect(0,0,viewW,viewH);
+const wL=WALL_THICKNESS-camera.x+viewW/2,wT=WALL_THICKNESS-camera.y+viewH/2,wR=(WORLD_W-WALL_THICKNESS)-camera.x+viewW/2,wB=(WORLD_H-WALL_THICKNESS)-camera.y+viewH/2;
+ctx.fillStyle='#1a1a1a';
+if(wT>-10)ctx.fillRect(-10,-10,viewW+20,Math.max(0,wT+10));
+if(wB<viewH+10)ctx.fillRect(-10,wB,viewW+20,viewH+20);
+if(wL>-10)ctx.fillRect(-10,-10,Math.max(0,wL+10),viewH+20);
+if(wR<viewW+10)ctx.fillRect(wR,-10,viewW+20,viewH+20);
+ctx.strokeStyle='#333';ctx.lineWidth=2;const im=WALL_THICKNESS-5;ctx.strokeRect(im-camera.x+viewW/2,im-camera.y+viewH/2,WORLD_W-2*im,WORLD_H-2*im);
+for(let i=0;i<powerUps.length;i++){
+const pu=powerUps[i];if(pu.collected)continue;if(!isInView(pu.x,pu.y))continue;
+const sp=worldToScreen(pu.x,pu.getDisplayY());
+if(pu.type==='boost'){ctx.fillStyle='#ffaa00';ctx.beginPath();ctx.arc(sp.x,sp.y,pu.radius,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⚡',sp.x,sp.y)}
+else{ctx.fillStyle='#5599ff';ctx.beginPath();ctx.arc(sp.x,sp.y,pu.radius,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🛡️',sp.x,sp.y)}
+}
+if(roomSettings.bossMode){
+for(let i=0;i<bulletPickups.length;i++){
+const bp=bulletPickups[i];if(!isInView(bp.x,bp.y))continue;
+const sp=worldToScreen(bp.x,bp.getDisplayY());
+ctx.fillStyle='#ffdd44';ctx.beginPath();ctx.arc(sp.x,sp.y,bp.radius,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🔫',sp.x,sp.y);
+}
+}
+ctx.fillStyle='#4a4';
+for(let i=0;i<apples.length;i++){
+const a=apples[i];if(!isInView(a.x,a.y,30))continue;
+const sp=worldToScreen(a.x,a.getDisplayY());
+ctx.beginPath();ctx.arc(sp.x,sp.y,APPLE_RADIUS,0,Math.PI*2);ctx.fill();
+}
+for(let i=0;i<aiSnakes.length;i++){const ai=aiSnakes[i];if(ai.alive&&isInView(ai.head.x,ai.head.y))drawSnakeBody(ai,'#e74c3c',false);}
+drawBoss();
+const remoteColors=['#ff9800','#9c27b0','#00bcd4','#e91e63','#8bc34a','#795548','#673ab7','#009688','#ff5722','#607d8b','#c0ca33','#ff4081','#7c4dff','#00e5ff','#76ff03','#ff6e40','#b388ff','#64ffda','#eeff41','#ff8a80'];
+let ci=0;
+if(isHost){
+for(const id in remotePlayers){
+const rs=remotePlayers[id].snake;if(!rs||!rs.alive)continue;
+const col=remoteColors[ci%remoteColors.length];rs.color=col;ci++;
+if(!isInView(rs.head.x,rs.head.y))continue;
+drawSnakeBody(rs,col,false);
+}
+} else {
+for(const id in remoteSnakes){
+const rs=remoteSnakes[id];if(!rs.alive)continue;
+const col=remoteColors[ci%remoteColors.length];rs.color=col;ci++;
+if(!isInView(rs.head.x,rs.head.y))continue;
+drawSnakeBody(rs,col,false);
+}
+}
+if(roomSettings.bossMode){
+for(let i=0;i<bullets.length;i++){
+const b=bullets[i];if(!b.alive)continue;if(!isInView(b.x,b.y,30))continue;
+const sp=worldToScreen(b.x,b.y);
+ctx.fillStyle='#ffdd00';ctx.beginPath();ctx.arc(sp.x,sp.y,BULLET_RADIUS,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle='#ff8800';ctx.lineWidth=2;ctx.stroke();
+}
+}
+if(player&&player.alive){
+if(shieldTimer>0){
+const sp=worldToScreen(player.head.x,player.head.y);
+ctx.strokeStyle='rgba(150,210,255,0.9)';ctx.lineWidth=3;ctx.setLineDash([8,4]);
+ctx.beginPath();ctx.arc(sp.x,sp.y,SNAKE_WIDTH+10+Math.sin(gameTime*8)*4,0,Math.PI*2);ctx.stroke();
+ctx.setLineDash([]);
+}
+drawSnakeBody(player,'#4da6ff',true);
+}
+drawMinimap();
+}
+
+function resetToLobby(){
+if(mqttClient){try{mqttClient.end(true)}catch(e){}mqttClient=null}
+isMultiplayer=false;isHost=false;gameStarted=false;gameState='lobby';
+paused=false;pauseModal.classList.remove('show');gameOverModal.classList.remove('show');
+netStatusBar.classList.remove('show');
+document.body.classList.remove('in-game');
+lobbyScreen.classList.remove('hidden');
+mainLogo.style.display='block';
+roomCodeDisplay.classList.remove('show');joinRoomDisplay.classList.remove('show');createRoomPanel.classList.remove('show');
+lobbyButtons.style.display='';
+myRoomCode.textContent='----';
+remotePlayers={};remoteSnakes={};netPlayerCount=1;deathCounts={};currentPlayerList=[];
+btnStartGame.style.display='inline-block';btnHostBack.style.display='inline-block';btnGuestLeave.style.display='none';
+joystickContainer.style.display='';boostBtnContainer.style.display='';shootBtnContainer.classList.remove('show');
+netQualityEl.classList.remove('show');
+updateAllPlayerLists();
+updateGoldUI();
+}
+
+btnCreateRoom.addEventListener('click',function(){initAudio();lobbyButtons.style.display='none';mainLogo.style.display='none';createRoomPanel.classList.add('show');});
+btnCancelCreate.addEventListener('click',function(){createRoomPanel.classList.remove('show');mainLogo.style.display='block';lobbyButtons.style.display='';});
+settingBoss.addEventListener('change',function(){if(settingBoss.checked){settingEndless.checked=false;settingEndless.disabled=true;}else{settingEndless.disabled=false;settingEndless.checked=true;}});
+btnConfirmCreate.addEventListener('click',function(){
+roomSettings.allowMinimap=settingMinimap.checked;
+roomSettings.endlessMode=settingBoss.checked?false:settingEndless.checked;
+roomSettings.showDeath=settingDeathstats.checked;
+roomSettings.bossMode=settingBoss.checked;
+const code=generateRoomCode();
+myRoomCode.textContent=code;
+createRoomPanel.classList.remove('show');mainLogo.style.display='none';
+roomCodeDisplay.classList.add('show');
+roomStatus.textContent='⏳ 等待玩家加入…';roomPlayers.textContent='👤 当前玩家：1 / 20';
+showMinimap=roomSettings.allowMinimap;endlessMode=roomSettings.endlessMode;
+minimapCheckbox.checked=showMinimap;endlessCheckbox.checked=endlessMode;
+btnStartGame.style.display='inline-block';btnHostBack.style.display='inline-block';btnGuestLeave.style.display='none';
+initNetwork(code,true);
+netStatusBar.classList.add('show');
+updateGoldUI();
+});
+btnHostBack.addEventListener('click',function(){if(!confirm('确定返回大厅吗？当前房间将关闭。'))return;resetToLobby();});
+btnJoinRoom.addEventListener('click',function(){initAudio();joinRoomDisplay.classList.add('show');lobbyButtons.style.display='none';mainLogo.style.display='none';roomCodeInput.value='';joinStatus.textContent='等待输入…';roomCodeInput.focus();});
+btnBackLobby.addEventListener('click',function(){joinRoomDisplay.classList.remove('show');mainLogo.style.display='block';lobbyButtons.style.display='';});
+btnDoJoin.addEventListener('click',doJoinRoom);
+roomCodeInput.addEventListener('input',function(){roomCodeInput.value=roomCodeInput.value.toUpperCase()});
+roomCodeInput.addEventListener('keydown',function(e){if(e.key==='Enter')doJoinRoom()});
+function doJoinRoom(){
+const code=roomCodeInput.value.trim().toUpperCase();
+if(code.length!==4){joinStatus.textContent='❌ 请输入4位房间号';return}
+joinStatus.textContent='🔗 正在连接…';
+helloAckReceived=false;
+initNetwork(code,false);
+netStatusBar.classList.add('show');
+setTimeout(function(){if(!helloAckReceived&&gameState==='lobby'){joinStatus.textContent='⚠️ 未找到房间，请确认房号是否正确'}},5000);
+}
+btnGuestLeave.addEventListener('click',function(){if(!confirm('确定退出房间吗？'))return;publishMsg({type:'leave',from:myMqttId});setTimeout(function(){resetToLobby()},150);});
+btnStartGame.addEventListener('click',function(){
+if(!isHost||!mqttClient)return;
+gameStarted=true;gameState='playing';
+lobbyScreen.classList.add('hidden');
+document.body.classList.add('in-game');
+initGame();
+deathCounts={};deathCounts[myPlayerName]=0;
+for(const id in remotePlayers)deathCounts[remotePlayers[id].name]=0;
+updateDeathStatsUI();
+publishMsg({type:'start_game',from:myMqttId,settings:roomSettings});
+broadcastGameState();
+updateNetPingDisplay();
+});
+
+function togglePause(){
+if(gameState!=='playing'&&gameState!=='paused')return;
+if(paused){paused=false;pauseModal.classList.remove('show')}
+else{paused=true;pauseRoomCode.textContent=myRoomCodeStr||'----';updateGoldUI();updateDeathStatsUI();updateAllPlayerLists();pauseModal.classList.add('show')}
+}
+pauseBtn.addEventListener('click',togglePause);
+btnResume.addEventListener('click',togglePause);
+btnExit.addEventListener('click',function(){
+if(!confirm('确定退出当前游戏吗？'))return;
+if(isMultiplayer&&!isHost){publishMsg({type:'leave',from:myMqttId});setTimeout(function(){resetToLobby()},150);}
+else resetToLobby();
+});
+
+// 商店按钮事件
+document.querySelectorAll('.shop-buy-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    buyShopItem(this.dataset.item);
+  });
+});
+
+minimapCheckbox.addEventListener('change',function(e){if(!roomSettings.allowMinimap){e.target.checked=false;return}showMinimap=e.target.checked;});
+endlessCheckbox.addEventListener('change',function(e){if(!roomSettings.endlessMode){e.target.checked=false;return}endlessMode=e.target.checked;});
+btnRestart.addEventListener('click',restartGame);
+
+window.addEventListener('keydown',function(e){
+keys[e.code]=true;
+if(e.code==='Space'||e.code==='KeyZ'){e.preventDefault();boostPressed=true;initAudio();if(!roomSettings.bossMode)sfx.boost();inputDirty=true}
+if(e.code==='KeyF'){e.preventDefault();tryFireBullet()}
+if(e.code==='KeyW'||e.code==='ArrowUp'){inputDir.y=-1;inputDirty=true}
+if(e.code==='KeyS'||e.code==='ArrowDown'){inputDir.y=1;inputDirty=true}
+if(e.code==='KeyA'||e.code==='ArrowLeft'){inputDir.x=-1;inputDirty=true}
+if(e.code==='KeyD'||e.code==='ArrowRight'){inputDir.x=1;inputDirty=true}
+const m=Math.hypot(inputDir.x,inputDir.y);if(m>1){inputDir.x/=m;inputDir.y/=m}
+});
+window.addEventListener('keyup',function(e){
+keys[e.code]=false;
+if(e.code==='Space'||e.code==='KeyZ'){if(!boostActive){boostPressed=false;inputDirty=true}}
+if(e.code==='KeyW'||e.code==='ArrowUp'){inputDir.y=keys['KeyS']||keys['ArrowDown']?1:0;inputDirty=true}
+if(e.code==='KeyS'||e.code==='ArrowDown'){inputDir.y=keys['KeyW']||keys['ArrowUp']?-1:0;inputDirty=true}
+if(e.code==='KeyA'||e.code==='ArrowLeft'){inputDir.x=keys['KeyD']||keys['ArrowRight']?1:0;inputDirty=true}
+if(e.code==='KeyD'||e.code==='ArrowRight'){inputDir.x=keys['KeyA']||keys['ArrowLeft']?-1:0;inputDirty=true}
+const m=Math.hypot(inputDir.x,inputDir.y);if(m>1){inputDir.x/=m;inputDir.y/=m}
+});
+window.addEventListener('keydown',function(e){if(e.code==='Escape'){e.preventDefault();togglePause()}});
+
+function updateJoystickPositions(){const r=joystickContainer.getBoundingClientRect();joystickCenter.x=r.left+r.width/2;joystickCenter.y=r.top+r.height/2;joystickRadius=r.width/2-15}
+function getJoystickInput(cx,cy){const dx=cx-joystickCenter.x,dy=cy-joystickCenter.y;const mag=Math.hypot(dx,dy);const cm=Math.min(mag,joystickRadius);const nx=mag>0?dx/mag:0,ny=mag>0?dy/mag:0;const ratio=cm/joystickRadius;return{x:nx*ratio,y:ny*ratio,thumbX:nx*cm,thumbY:ny*cm}}
+
+joystickContainer.addEventListener('touchstart',function(e){e.preventDefault();initAudio();if(joystickTouchId!==null)return;const t=e.changedTouches[0];joystickTouchId=t.identifier;joystickActive=true;updateJoystickPositions();const i=getJoystickInput(t.clientX,t.clientY);inputDir={x:i.x,y:i.y};inputDirty=true;joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'},{passive:false});
+joystickContainer.addEventListener('touchmove',function(e){e.preventDefault();for(const t of e.changedTouches)if(t.identifier===joystickTouchId){const i=getJoystickInput(t.clientX,t.clientY);inputDir={x:i.x,y:i.y};inputDirty=true;joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'}},{passive:false});
+joystickContainer.addEventListener('touchend',function(e){for(const t of e.changedTouches)if(t.identifier===joystickTouchId){joystickTouchId=null;joystickActive=false;inputDir={x:0,y:0};inputDirty=true;joystickThumb.style.transform='translate(-50%,-50%)'}});
+joystickContainer.addEventListener('touchcancel',function(){joystickTouchId=null;joystickActive=false;inputDir={x:0,y:0};inputDirty=true;joystickThumb.style.transform='translate(-50%,-50%)'});
+joystickContainer.addEventListener('mousedown',function(e){e.preventDefault();initAudio();joystickActive=true;updateJoystickPositions();const i=getJoystickInput(e.clientX,e.clientY);inputDir={x:i.x,y:i.y};inputDirty=true;joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'});
+window.addEventListener('mousemove',function(e){if(joystickActive&&!joystickTouchId){const i=getJoystickInput(e.clientX,e.clientY);inputDir={x:i.x,y:i.y};inputDirty=true;joystickThumb.style.transform='translate(calc(-50% + '+i.thumbX+'px), calc(-50% + '+i.thumbY+'px))'}});
+window.addEventListener('mouseup',function(){if(joystickActive&&!joystickTouchId){joystickActive=false;inputDir={x:0,y:0};inputDirty=true;joystickThumb.style.transform='translate(-50%,-50%)'}});
+
+boostBtnContainer.addEventListener('touchstart',function(e){e.preventDefault();initAudio();if(boostTouchId!==null)return;boostTouchId=e.changedTouches[0].identifier;boostActive=true;boostPressed=true;inputDirty=true;boostBtn.classList.add('pressed');if(!roomSettings.bossMode)sfx.boost()},{passive:false});
+boostBtnContainer.addEventListener('touchend',function(e){for(const t of e.changedTouches)if(t.identifier===boostTouchId){boostTouchId=null;boostActive=false;boostPressed=false;inputDirty=true;boostBtn.classList.remove('pressed')}});
+boostBtnContainer.addEventListener('touchcancel',function(){boostTouchId=null;boostActive=false;boostPressed=false;inputDirty=true;boostBtn.classList.remove('pressed')});
+boostBtnContainer.addEventListener('mousedown',function(e){e.preventDefault();initAudio();boostActive=true;boostPressed=true;inputDirty=true;boostBtn.classList.add('pressed');if(!roomSettings.bossMode)sfx.boost()});
+boostBtnContainer.addEventListener('mouseup',function(){boostActive=false;boostPressed=false;inputDirty=true;boostBtn.classList.remove('pressed')});
+boostBtnContainer.addEventListener('mouseleave',function(){if(boostActive){boostActive=false;boostPressed=false;inputDirty=true;boostBtn.classList.remove('pressed')}});
+
+shootBtnContainer.addEventListener('touchstart',function(e){e.preventDefault();initAudio();shootBtn.classList.add('pressed');tryFireBullet()},{passive:false});
+shootBtnContainer.addEventListener('touchend',function(){shootBtn.classList.remove('pressed')});
+shootBtnContainer.addEventListener('touchcancel',function(){shootBtn.classList.remove('pressed')});
+shootBtnContainer.addEventListener('mousedown',function(e){e.preventDefault();initAudio();shootBtn.classList.add('pressed');tryFireBullet()});
+shootBtnContainer.addEventListener('mouseup',function(){shootBtn.classList.remove('pressed')});
+shootBtnContainer.addEventListener('mouseleave',function(){shootBtn.classList.remove('pressed')});
+
+// ==================== 主循环 ====================
+let lastTime=performance.now();
+let accumulator=0;
+function gameLoop(now){
+requestAnimationFrame(gameLoop);
+let dt=(now-lastTime)/1000;lastTime=now;
+if(dt>0.2)dt=0.2;if(dt<=0)dt=1/60;
+accumulator+=dt;
+if(accumulator<1/RENDER_FPS)return;
+const step=Math.min(accumulator,0.1);
+accumulator=0;
+
+if(isMultiplayer&&!isHost&&mqttClient&&mqttClient.connected){
+if(now-lastPingSent>PING_INTERVAL){lastPingSent=now;publishMsg({type:'ping',t:Date.now(),from:myMqttId});}
+}
+
+if(isMultiplayer&&!isHost&&gameState==='playing'){
+const smoothT=0.35;
+if(player&&player.targetSegments)player.smoothFollow(smoothT);
+for(const id in remoteSnakes)remoteSnakes[id].smoothFollow(smoothT);
+for(let i=0;i<aiSnakes.length;i++)aiSnakes[i].smoothFollow(smoothT);
+if(boss&&boss.targetX!==undefined){boss.x=lerp(boss.x,boss.targetX,0.3);boss.y=lerp(boss.y,boss.targetY,0.3);}
+}
+
+if(gameState==='playing'){if(!isMultiplayer||isHost)processGame(step);}
+
+if(isMultiplayer&&!isHost&&gameState==='playing'){
+  if(powerBoostTimer>0)powerBoostTimer-=step;
+  if(shieldTimer>0)shieldTimer-=step;
+}
+
+if(isMultiplayer&&!isHost&&gameState==='playing'&&player&&player.alive){
+const mag=Math.hypot(inputDir.x,inputDir.y);
+if(mag>0.15){const t=Math.atan2(inputDir.y,inputDir.x);let d=t-player.dir;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;player.dir+=clamp(d,-TURN_RATE*step,TURN_RATE*step);}
+let speedMult = 1;
+if(boostPressed) speedMult *= BOOST_SPEED_MULT;
+if(powerBoostTimer>0) speedMult *= POWER_BOOST_MULT;
+const moveSpeed=NORMAL_SPEED*speedMult*step;
+player.segments[0].x+=Math.cos(player.dir)*moveSpeed;player.segments[0].y+=Math.sin(player.dir)*moveSpeed;
+for(let i=1;i<player.segments.length;i++){
+const dx=player.segments[i-1].x-player.segments[i].x;const dy=player.segments[i-1].y-player.segments[i].y;
+const d=Math.hypot(dx,dy);const target=i*SEGMENT_SPACING;
+if(d>target){const ratio=(d-target)/d;player.segments[i].x+=dx*ratio*0.5;player.segments[i].y+=dy*ratio*0.5;}
+}
+player.clampToBounds();
+camera.x=lerp(camera.x,player.head.x,0.25);camera.y=lerp(camera.y,player.head.y,0.25);
+const hw=viewW/2,hh=viewH/2;camera.x=clamp(camera.x,hw,WORLD_W-hw);camera.y=clamp(camera.y,hh,WORLD_H-hh);
+updateUI();
+}
+
+if(isMultiplayer&&!isHost&&mqttClient&&gameState==='playing'&&gameStarted){
+if(inputDirty||now-lastSyncTime>NET_SYNC_INTERVAL){
+inputDirty=false;lastSyncTime=now;
+publishMsg({type:'input',from:myMqttId,inputDir:{x:Math.round(inputDir.x*100)/100,y:Math.round(inputDir.y*100)/100},boostPressed:boostPressed});
+}
+}
+if(isMultiplayer&&isHost&&mqttClient&&gameState==='playing'&&gameStarted){
+if(now-lastSyncTime>NET_SYNC_INTERVAL){lastSyncTime=now;broadcastGameState();}
+}
+if(shootCooldown>0)shootCooldown-=step;
+render();
+}
+
+function handleResize(){viewW=wrapper.clientWidth;viewH=wrapper.clientHeight;canvas.width=viewW;canvas.height=viewH;canvas.style.width=viewW+'px';canvas.style.height=viewH+'px';ctx.setTransform(1,0,0,1,0,0);updateJoystickPositions();}
+window.addEventListener('resize',handleResize);
+window.addEventListener('orientationchange',function(){setTimeout(handleResize,300)});
+
+gameState='lobby';
+(function initBackground(){
+apples=[];for(let i=0;i<TOTAL_APPLES;i++)apples.push(createApple());
+powerUps=[];for(let i=0;i<POWERUP_COUNT_BOOST;i++)powerUps.push(createPowerUp('boost'));
+for(let i=0;i<POWERUP_COUNT_SHIELD;i++)powerUps.push(createPowerUp('shield'));
+const m=WALL_THICKNESS+120;
+player=new Snake(randRange(m,WORLD_W-m),randRange(m,WORLD_H-m),'#4da6ff',true);
+camera.x=player.head.x;camera.y=player.head.y;camera.targetX=player.head.x;camera.targetY=player.head.y;
+})();
+(function fillBadge(){
+if(badgeAvatar){badgeAvatar.onerror=function(){this.onerror=null;this.src=DEFAULT_AVATAR};badgeAvatar.src=safeImgSrc(playerAvatar)}
+if(badgeName)badgeName.textContent=playerName;
+})();
+updateAllPlayerLists();
+updateGoldUI();
+handleResize();
+updateJoystickPositions();
+requestAnimationFrame(gameLoop);
+console.log('🐍 贪吃蛇大作战 · 联机版已启动（含金币系统+50苹果弹窗重生）');
+})();
+</script>
+</body>
+</html>

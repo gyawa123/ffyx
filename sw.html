@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+    <title>婉芬游戏大挑战网页版</title>
+    <style>
+        :root { --bg: #1a1a2e; --gold: #f0c060; --accent: #4ecdc4; }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+        html,body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'PingFang SC','Microsoft YaHei',sans-serif; touch-action:manipulation; position:fixed; top:0; left:0; }
+        #portrait-error { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:99999; flex-direction:column; align-items:center; justify-content:center; color:#e74c3c; font-size:1.5rem; font-weight:bold; }
+        @media (orientation: portrait){ #portrait-error{display:flex!important} #app-container{display:none!important} }
+        @media (orientation: landscape){ #portrait-error{display:none!important} #app-container{display:block!important} }
+        #app-container { width:100%; height:100%; position:relative; overflow:hidden; background-color:#1a1a2e; }
+        #bg-layer { position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden; }
+        #bg-layer iframe { width:100%; height:100%; display:block; border:none; }
+        #bg-layer img { width:100%; height:100%; display:block; object-fit:cover; }
+        .page { position:absolute; top:0; left:0; width:100%; height:100%; display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; z-index:1; }
+        .page.active { display:flex; }
+        #boot-page { background:rgba(0,0,0,0.75); z-index:100; }
+        #boot-page .boot-line { font-size:0.85rem; margin:3px 0; opacity:0; animation:fadeInLine 0.4s forwards; color:#fff; }
+        @keyframes fadeInLine { to{opacity:1} }
+        #boot-page .boot-progress { width:60%; height:6px; background:#333; border-radius:3px; margin-top:15px; overflow:hidden; }
+        #boot-page .boot-progress-fill { height:100%; background:#fff; width:0%; transition:width 0.15s; }
+        #boot-page .boot-status { margin-top:8px; font-size:0.7rem; color:#ddd; }
+        .home-title { font-size:clamp(1.4rem,3vw,2.2rem); font-weight:bold; color:#fff; text-shadow:0 0 20px rgba(255,200,60,0.8),2px 2px 0 #3a2a0a; letter-spacing:0.15em; margin-bottom:2rem; padding:10px 20px; background:rgba(0,0,0,0.5); border-radius:12px; border:2px solid rgba(255,200,100,0.3); }
+        .home-btn { display:block; width:clamp(200px,30vw,280px); padding:16px 20px; margin:12px 0; font-size:1.2rem; font-weight:bold; text-align:center; border:none; border-radius:50px; cursor:pointer; color:#fff; background:linear-gradient(135deg,#667eea,#764ba2); box-shadow:0 8px 20px rgba(0,0,0,0.3); transition:all 0.2s; letter-spacing:0.1em; position:relative; overflow:hidden; }
+        .home-btn::after { content:''; position:absolute; top:0; left:-100%; width:100%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent); transition:0.5s; }
+        .home-btn:hover::after { left:100%; }
+        .home-btn:active { transform:scale(0.95); box-shadow:0 4px 10px rgba(0,0,0,0.3); }
+        .home-btn.shop-btn { background:linear-gradient(135deg,#f093fb,#f5576c); }
+        .home-btn.settings-btn { background:linear-gradient(135deg,#4ecdc4,#2ecc71); }
+        .home-footer { position:absolute; bottom:10px; width:100%; display:flex; justify-content:space-between; padding:0 20px; color:rgba(255,255,255,0.6); font-size:0.7rem; pointer-events:none; }
+        .splash-text { position: absolute; top: 12%; right: 8%; font-size: 1.6rem; font-weight: bold; color: #f0c060; transform: rotate(-15deg); animation: splashPulse 1.5s infinite alternate ease-in-out; text-shadow: 2px 2px 0 #3a2a0a; pointer-events: none; z-index: 10; white-space: nowrap; }
+        .splash-text.rainbow { background: linear-gradient(90deg, red, orange, yellow, green, cyan, blue, violet); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent; text-shadow: none; animation: splashPulse 1.5s infinite alternate ease-in-out, rainbowShift 3s linear infinite; }
+        @keyframes splashPulse { 0% { transform: rotate(-15deg) scale(1); } 100% { transform: rotate(-15deg) scale(1.2); } }
+        @keyframes rainbowShift { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+        #settings-page { flex-direction:row; align-items:stretch; justify-content:flex-start; background:rgba(10,15,35,0.55); padding:0; }
+        .settings-back-btn { position:absolute; top:15px; left:15px; z-index:35; padding:10px 20px; font-size:0.9rem; background:rgba(0,0,0,0.6); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:8px; cursor:pointer; transition:all 0.2s; }
+        .settings-back-btn:hover { background:rgba(78,205,196,0.3); border-color:#4ecdc4; }
+        .settings-nav { width:180px; min-width:180px; background:rgba(30,30,50,0.75); display:flex; flex-direction:column; padding:60px 15px 20px 15px; gap:8px; border-right:2px solid rgba(255,255,255,0.15); overflow-y:auto; }
+        .settings-nav-btn { width:100%; padding:14px 18px; text-align:left; font-size:1rem; color:#ccc; background:transparent; border:none; border-radius:10px; cursor:pointer; transition:all 0.3s; font-weight:500; letter-spacing:0.05em; }
+        .settings-nav-btn:hover { background:rgba(78,205,196,0.2); color:#fff; }
+        .settings-nav-btn.active { background:#4ecdc4; color:#000; font-weight:bold; box-shadow:0 4px 15px rgba(78,205,196,0.4); }
+        .settings-content { flex:1; padding:50px 30px 30px 30px; overflow-y:auto; display:flex; flex-direction:column; align-items:center; }
+        .settings-panel { display:none; width:100%; max-width:500px; flex-direction:column; align-items:center; gap:20px; }
+        .settings-panel.active { display:flex; }
+        .settings-panel h3 { color:#f0c060; font-size:1.3rem; margin-bottom:10px; letter-spacing:0.1em; }
+        .settings-avatar-preview { width:60px; height:60px; border-radius:50%; border:3px solid #f0c060; object-fit:cover; }
+        .settings-input { width:100%; max-width:300px; padding:12px 20px; border-radius:20px; border:none; font-size:1rem; background:#2a2a4a; color:#fff; text-align:center; outline:none; transition:all 0.3s; }
+        .settings-input:focus { box-shadow:0 0 0 2px #4ecdc4; }
+        .settings-btn { padding:12px 28px; font-size:0.95rem; font-weight:bold; color:#fff; background:linear-gradient(135deg,#667eea,#764ba2); border:none; border-radius:50px; cursor:pointer; transition:all 0.2s; letter-spacing:0.05em; box-shadow:0 4px 15px rgba(102,126,234,0.3); }
+        .settings-btn:hover { box-shadow:0 6px 20px rgba(102,126,234,0.5); }
+        .settings-btn:active { transform:scale(0.95); }
+        .settings-btn.secondary { background:linear-gradient(135deg,#555,#444); box-shadow:0 4px 15px rgba(0,0,0,0.3); }
+        .settings-toggle-row { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:350px; padding:12px 20px; background:rgba(30,30,50,0.55); border-radius:12px; }
+        .settings-toggle-label { color:#fff; font-size:1rem; flex:1; }
+        .toggle-switch { width:50px; height:28px; background:#555; border-radius:14px; position:relative; cursor:pointer; transition:background 0.3s; }
+        .toggle-switch.active { background:#4ecdc4; }
+        .toggle-switch::after { content:''; position:absolute; width:24px; height:24px; background:white; border-radius:50%; top:2px; left:2px; transition:left 0.3s; }
+        .toggle-switch.active::after { left:24px; }
+        .settings-about-info { text-align:center; color:#ccc; line-height:2; font-size:0.95rem; }
+        .bg-options-wrap { display:flex; flex-direction:column; gap:12px; width:100%; max-width:350px; }
+        .bg-options-title { color:#fff; font-size:0.95rem; }
+        .bg-options-row { display:flex; gap:10px; }
+        .bg-option { flex:1; padding:14px 10px; border-radius:12px; border:2px solid rgba(255,255,255,0.2); background:rgba(30,30,50,0.6); color:#fff; font-size:0.9rem; cursor:pointer; transition:all 0.2s; text-align:center; }
+        .bg-option .bg-option-icon { display:block; font-size:1.6rem; margin-bottom:4px; }
+        .bg-option.active { border-color:#4ecdc4; background:rgba(78,205,196,0.2); box-shadow:0 0 15px rgba(78,205,196,0.4); }
+        .bg-option:active { transform:scale(0.95); }
+        #game-select-page { background:rgba(10,15,35,0.55); }
+        .select-title { font-size:1.3rem; color:#f0c060; margin-bottom:1rem; }
+        .game-list { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; max-width:90%; }
+        .game-card { width:clamp(100px,18vw,150px); padding:12px 8px; text-align:center; background:rgba(30,30,54,0.75); border:2px solid rgba(255,255,255,0.2); border-radius:10px; cursor:pointer; color:#fff; font-size:0.9rem; }
+        .game-card:active { border-color:#f0c060; }
+        .game-card .icon { font-size:2rem; display:block; margin-bottom:6px; }
+        .back-btn { position:absolute; top:10px; left:10px; z-index:30; padding:8px 14px; font-size:0.8rem; background:rgba(0,0,0,0.7); color:#fff; border:1px solid rgba(255,255,255,0.4); border-radius:6px; cursor:pointer; }
+        .reset-btn { position:absolute; top:10px; right:10px; z-index:30; padding:8px 14px; font-size:0.8rem; background:rgba(200,80,60,0.8); color:#fff; border:1px solid #c05040; border-radius:6px; cursor:pointer; }
+        .game-page { position:absolute; top:0; left:0; width:100%; height:100%; z-index:25; display:none; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.9); }
+        .game-page.active { display:flex; }
+        .game-info { color:#fff; font-size:0.75rem; background:rgba(0,0,0,0.6); padding:4px 10px; border-radius:4px; }
+        #game-2048 .grid-2048 { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; background:#bbada0; padding:10px; border-radius:10px; width:min(55vh,380px); aspect-ratio:1; touch-action:none; }
+        #game-2048 .cell { background:#cdc1b4; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#776e65; aspect-ratio:1; }
+        .cell[data-v="2"]{background:#eee4da} .cell[data-v="4"]{background:#ede0c8} .cell[data-v="8"]{background:#f2b179;color:#fff} .cell[data-v="16"]{background:#f59563;color:#fff} .cell[data-v="32"]{background:#f67c5f;color:#fff} .cell[data-v="64"]{background:#f65e3b;color:#fff} .cell[data-v="128"]{background:#edcf72;color:#fff;font-size:0.8rem} .cell[data-v="256"]{background:#edcc61;color:#fff} .cell[data-v="512"]{background:#edc850;color:#fff} .cell[data-v="1024"]{background:#edc53f;color:#fff;font-size:0.7rem} .cell[data-v="2048"]{background:#edc22e;color:#fff;font-size:0.7rem}
+        #game-tictactoe .ttt-board { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; background:#444; padding:6px; border-radius:8px; width:min(40vh,280px); aspect-ratio:1; }
+        #game-tictactoe .ttt-cell { background:#222; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:bold; cursor:pointer; color:#fff; aspect-ratio:1; }
+        #game-minesweeper .board { display:grid; gap:2px; background:#555; padding:4px; border-radius:4px; }
+        #game-minesweeper .cell { width:28px; height:28px; background:#999; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; cursor:pointer; border-radius:2px; }
+        #game-jump canvas { background:#222; border:2px solid #4ecdc4; border-radius:6px; width:min(85vh,700px); height:260px; }
+        .jump-mobile-controls { display:none; gap:20px; margin-top:8px; justify-content:space-between; width:180px; }
+        .jump-mobile-btn { width:60px; height:60px; border-radius:50%; background:rgba(30,30,50,0.9); border:2px solid #4ecdc4; color:#fff; font-size:1.5rem; cursor:pointer; }
+        @media (pointer:coarse) { .jump-mobile-controls { display:flex; } }
+        .slow-mode-btn, .hard-mode-btn { margin:5px; padding:6px 14px; border-radius:15px; background:#666; border:none; color:#fff; cursor:pointer; font-size:0.7rem; }
+        .slow-mode-btn.active, .hard-mode-btn.active { background:#4ecdc4; color:#000; }
+        .shop-container { width:95%; max-height:80vh; overflow-y:auto; padding:10px; }
+        .shop-item { background:rgba(30,30,50,0.7); border:2px solid rgba(255,255,255,0.2); border-radius:10px; padding:12px 15px; margin:6px 0; display:flex; justify-content:space-between; align-items:center; color:#fff; }
+        .shop-item button { padding:6px 12px; border-radius:6px; background:#f0c060; border:none; color:#000; font-weight:bold; cursor:pointer; }
+        .gift-btn { margin:5px 0; padding:8px 18px; background:#ffb347; border:none; border-radius:20px; font-weight:bold; color:#000; cursor:pointer; }
+        .gift-btn:disabled { background:#666; }
+        .popup-overlay { position:fixed; top:0; left:0; width:100%; height:100%; z-index:500; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; }
+        .popup-overlay.active { display:flex; }
+        .popup-box { background:#1e1e36; border:2px solid #f0c060; border-radius:12px; padding:20px 24px; text-align:center; color:#fff; font-size:1rem; max-width:85%; min-width:230px; }
+        .popup-box button { margin:10px 5px 0; padding:8px 20px; border-radius:6px; background:#f0c060; border:none; color:#000; font-weight:bold; cursor:pointer; }
+        .popup-box .popup-choice-btn { display:block; width:100%; margin:6px 0; padding:10px 16px; border-radius:10px; border:none; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:bold; cursor:pointer; font-size:0.95rem; }
+        .popup-box .popup-choice-btn:active { transform:scale(0.97); }
+        .popup-box .popup-choice-btn.cancel { background:#444; }
+        .player-info { position:absolute; top:10px; left:10px; display:flex; align-items:center; gap:8px; z-index:50; }
+        .player-info img { width:40px; height:40px; border-radius:50%; border:2px solid #f0c060; }
+        .player-info span { font-size:0.8rem; color:#fff; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .npc-container { position:absolute; top:-100px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; z-index:40; background:rgba(30,30,50,0.95); padding:4px 20px; border-radius:30px; max-width:90%; pointer-events:none; box-shadow:0 4px 15px rgba(0,0,0,0.5); transition:top 0.4s cubic-bezier(0.175,0.885,0.32,1.275); }
+        .npc-container.show { top:5px; }
+        .npc-container img { width:36px; height:36px; border-radius:50%; border:2px solid #f0c060; }
+        .npc-dialog { color:#fff; font-size:0.75rem; white-space:normal; word-break:break-word; max-width:300px; }
+        #player-setup-page { background:rgba(0,0,0,0.9); z-index:120; }
+        .setup-box { background:#1e1e36; border:2px solid #f0c060; border-radius:20px; padding:20px 30px; text-align:center; max-width:90%; }
+        .setup-box input { margin:10px 0; padding:10px; width:80%; border-radius:20px; border:none; font-size:1rem; background:#2a2a4a; color:#fff; text-align:center; }
+        .setup-box .game-btn { margin:10px; padding:10px 20px; background:linear-gradient(135deg,#f0c060,#e8a030); border:none; border-radius:20px; color:#000; font-weight:bold; cursor:pointer; }
+        .setup-box .game-btn:active { transform:scale(0.95); }
+        .memory-board { display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows: repeat(4,1fr); gap:8px; background:rgba(0,0,0,0.5); padding:12px; border-radius:10px; width:min(55vh,380px); aspect-ratio:1; }
+        .memory-card { background:linear-gradient(135deg,#667eea,#764ba2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:clamp(1.2rem, 5vh, 2rem); cursor:pointer; transition:transform 0.2s, background 0.3s; color:transparent; width:100%; height:100%; box-sizing:border-box; }
+        .memory-card.revealed { background:#fff; color:#000; }
+        .memory-card.matched { background:#4ecdc4; color:#fff; cursor:default; transform: scale(0.92); }
+        #shop-page { background:rgba(10,15,35,0.55); }
+
+        #iframe-layer {
+            position:absolute; top:0; left:0; width:100%; height:100%;
+            z-index:100; display:none; background:#000;
+        }
+        #iframe-layer.active { display:block; }
+        #iframe-layer iframe { width:100%; height:100%; border:none; display:block; }
+
+        #float-orb {
+            position:absolute; right:14px; bottom:14px;
+            width:56px; height:56px; border-radius:50%;
+            border:2px solid #f0c060; object-fit:cover;
+            background:#1e1e36; z-index:130;
+            display:none; cursor:pointer;
+            box-shadow:0 4px 16px rgba(0,0,0,0.65);
+            animation: orbFloat 2.4s ease-in-out infinite;
+            touch-action: none;
+        }
+        #float-orb.active { display:block; }
+        @keyframes orbFloat { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+
+        #float-menu {
+            position:absolute; right:14px; bottom:80px;
+            width:212px; padding:12px; z-index:130;
+            background:rgba(20,20,40,0.96);
+            border:2px solid #f0c060; border-radius:14px;
+            display:none; flex-direction:column; gap:8px;
+            color:#fff; box-shadow:0 8px 25px rgba(0,0,0,0.65);
+        }
+        #float-menu.active { display:flex; }
+        #float-menu .float-menu-title { font-size:0.7rem; color:#f0c060; letter-spacing:0.08em; }
+        #float-menu .float-menu-game { font-size:1rem; font-weight:bold; margin-bottom:2px; }
+        #float-menu .float-menu-row { display:flex; align-items:center; justify-content:space-between; font-size:0.85rem; padding:4px 0; }
+        #float-menu .float-menu-exit { margin-top:4px; padding:9px 12px; border-radius:10px; border:none; background:linear-gradient(135deg,#f5576c,#c0392b); color:#fff; font-weight:bold; cursor:pointer; font-size:0.9rem; }
+        #float-menu .float-menu-exit:active { transform:scale(0.97); }
+
+        /* ===== 全屏按钮 ===== */
+        .fullscreen-btn {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            z-index: 50;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .fullscreen-btn:hover {
+            background: rgba(78,205,196,0.3);
+            border-color: #4ecdc4;
+        }
+        .fullscreen-btn:active {
+            transform: scale(0.95);
+        }
+        .fullscreen-btn .fs-icon { font-size: 1.05rem; line-height: 1; }
+
+        /* ===== 首次进入的缓冲层 ===== */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 99998; background: radial-gradient(circle at 50% 45%, #141428 0%, #08080f 75%);
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            color: #fff; opacity: 1; transition: opacity 0.7s ease;
+        }
+        html.first-load #loading-overlay { display: flex; }
+        #loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+        .loading-ring-wrap { position: relative; width: 130px; height: 130px; }
+        .loading-ring { width: 130px; height: 130px; transform: rotate(-90deg); display: block; }
+        .loading-ring-bg { fill: none; stroke: rgba(255,255,255,0.10); stroke-width: 8; }
+        .loading-ring-fg {
+            fill: none; stroke: #f0c060; stroke-width: 8; stroke-linecap: round;
+            filter: drop-shadow(0 0 8px rgba(240,192,96,0.75));
+            transition: stroke-dashoffset 0.18s linear;
+        }
+        .loading-percent {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.45rem; font-weight: bold; color: #f0c060;
+            text-shadow: 0 0 14px rgba(240,192,96,0.6);
+            letter-spacing: 0.03em;
+        }
+        .loading-title {
+            margin-top: 26px; font-size: 1.05rem; letter-spacing: 0.22em;
+            color: #fff; text-shadow: 0 0 18px rgba(240,192,96,0.45);
+        }
+        .loading-text { margin-top: 12px; font-size: 0.82rem; color: #b9b9cc; letter-spacing: 0.06em; min-height: 1.2em; }
+        .loading-tip { margin-top: 26px; font-size: 0.68rem; color: rgba(255,255,255,0.32); letter-spacing: 0.05em; }
+    </style>
+    <script>
+        // 提前判定是否为首次进入，避免缓冲层闪烁
+        try {
+            if (localStorage.getItem('wf_loading_shown') !== '1') {
+                document.documentElement.classList.add('first-load');
+            }
+        } catch (e) {}
+    </script>
+</head>
+<body>
+<div id="portrait-error">⚠️<br>请使用横屏模式</div>
+
+<!-- 首次进入的缓冲层 -->
+<div id="loading-overlay">
+    <div class="loading-ring-wrap">
+        <svg class="loading-ring" viewBox="0 0 130 130">
+            <circle class="loading-ring-bg" cx="65" cy="65" r="52"></circle>
+            <circle class="loading-ring-fg" id="loading-ring-fg" cx="65" cy="65" r="52"></circle>
+        </svg>
+        <div class="loading-percent" id="loading-percent">0%</div>
+    </div>
+    <div class="loading-title">婉芬游戏大挑战网页版</div>
+    <div class="loading-text" id="loading-text">正在初始化引擎…</div>
+    <div class="loading-tip" id="loading-tip">首次进入需要加载资源，请稍候…</div>
+</div>
+
+<div id="app-container">
+    <div id="bg-layer"></div>
+
+    <div class="page active" id="boot-page">
+        <div style="font-size:1.2rem;color:#fff;margin-bottom:15px;">婉芬游戏大挑战网页版</div>
+        <div id="boot-lines"></div>
+        <div class="boot-progress"><div class="boot-progress-fill" id="boot-progress-fill"></div></div>
+        <div class="boot-status" id="boot-status">准备中...</div>
+    </div>
+
+    <div class="page" id="player-setup-page">
+        <div class="setup-box">
+            <h2 style="color:#f0c060;">欢迎！请设置你的信息</h2>
+            <input type="text" id="setup-name" placeholder="输入你的名字" maxlength="20">
+            <div style="margin:10px 0;"><img id="setup-avatar-preview" src="mo.png" style="width:60px;height:60px;border-radius:50%;border:2px solid #f0c060;"></div>
+            <button class="game-btn" onclick="document.getElementById('setup-file').click()">上传头像</button>
+            <input type="file" id="setup-file" accept="image/*" style="display:none" onchange="previewSetupAvatar(this)">
+            <button class="game-btn" onclick="savePlayerInfo()">进入游戏</button>
+        </div>
+    </div>
+
+    <div class="page" id="home-page">
+        <div class="player-info" id="home-player-info"><img id="home-avatar" src="mo.png"><span id="home-name">玩家</span></div>
+        <button class="fullscreen-btn" id="fullscreen-btn" onclick="toggleFullscreen()"><span class="fs-icon">⛶</span><span id="fullscreen-text">全屏</span></button>
+        <div class="home-title" id="home-title">🎮 婉芬游戏大挑战网页版</div>
+        <div class="splash-text" id="splash-text">4.0！</div>
+        <button class="home-btn" onclick="showPage('game-select-page')">🎯 游 戏</button>
+        <button class="home-btn settings-btn" onclick="showPage('settings-page')">⚙️ 设 置</button>
+        <button class="home-btn shop-btn" onclick="showPage('shop-page')">🏪 商 店</button>
+        <div class="home-footer"><span>版本号：4.0</span><span>作者：关烨</span></div>
+    </div>
+
+    <div class="page" id="settings-page">
+        <button class="settings-back-btn" onclick="showPage('home-page')">← 返回</button>
+        <div class="settings-nav">
+            <button class="settings-nav-btn active" data-panel="profile">📋 档案</button>
+            <button class="settings-nav-btn" data-panel="sound">🔊 声音</button>
+            <button class="settings-nav-btn" data-panel="display">🖼️ 画面</button>
+            <button class="settings-nav-btn" data-panel="other">⚙️ 其他</button>
+            <button class="settings-nav-btn" data-panel="about">ℹ️ 关于</button>
+        </div>
+        <div class="settings-content">
+            <div class="settings-panel active" id="panel-profile">
+                <h3>📋 档案</h3>
+                <img class="settings-avatar-preview" id="settings-avatar-img" src="mo.png" alt="头像">
+                <button class="settings-btn" onclick="document.getElementById('settings-file-input').click()">📷 修改头像</button>
+                <input type="file" id="settings-file-input" accept="image/*" style="display:none" onchange="handleSettingsAvatarChange(this)">
+                <button class="settings-btn secondary" onclick="resetSettingsAvatar()">🔄 恢复默认头像</button>
+                <div class="settings-divider" style="width:100%;max-width:350px;height:1px;background:rgba(255,255,255,0.1);margin:5px 0;"></div>
+                <input type="text" class="settings-input" id="settings-name-input" placeholder="输入你的名字" maxlength="20" oninput="handleSettingsNameChange()">
+            </div>
+            <div class="settings-panel" id="panel-sound">
+                <h3>🔊 声音</h3>
+                <div class="settings-toggle-row">
+                    <span class="settings-toggle-label">🔊 总声音</span>
+                    <div class="toggle-switch active" id="sound-switch" onclick="toggleSoundSetting()"></div>
+                </div>
+                <div class="settings-toggle-row">
+                    <span class="settings-toggle-label">🎵 背景音乐</span>
+                    <div class="toggle-switch active" id="bgm-switch" onclick="toggleBGMSetting()"></div>
+                </div>
+            </div>
+            <div class="settings-panel" id="panel-display">
+                <h3>🖼️ 画面</h3>
+                <div class="bg-options-wrap">
+                    <div class="bg-options-title">背景壁纸</div>
+                    <div class="bg-options-row">
+                        <button class="bg-option" data-mode="image" onclick="setBgMode('image')">
+                            <span class="bg-option-icon">🖼️</span>
+                            纯图片
+                        </button>
+                        <button class="bg-option" data-mode="dynamic" onclick="setBgMode('dynamic')">
+                            <span class="bg-option-icon">🌌</span>
+                            动态壁纸
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-panel" id="panel-other">
+                <h3>⚙️ 其他</h3>
+                <div class="settings-toggle-row">
+                    <span class="settings-toggle-label">💬 婉芬对话</span>
+                    <div class="toggle-switch active" id="npc-switch" onclick="toggleNPCSetting()"></div>
+                </div>
+            </div>
+            <div class="settings-panel" id="panel-about">
+                <h3>ℹ️ 关于</h3>
+                <div class="settings-about-info">
+                    <p>🎮 <strong>婉芬游戏大挑战网页版</strong></p>
+                    <p>版本:<strong>4.0</strong></p>
+                    <p>作者:<strong>关烨</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page" id="game-select-page">
+        <button class="back-btn" onclick="showPage('home-page')">← 返回</button>
+        <div class="select-title">🎯 选择游戏</div>
+        <div class="game-list">
+            <div class="game-card" onclick="start2048()"><span class="icon">🔢</span>2048</div>
+            <div class="game-card" onclick="chooseGomokuMode()"><span class="icon">♟️</span>五子棋</div>
+            <div class="game-card" onclick="startTicTacToe()"><span class="icon">⭕</span>井字棋</div>
+            <div class="game-card" onclick="chooseSnakeMode()"><span class="icon">🐍</span>贪吃蛇</div>
+            <div class="game-card" onclick="startMinesweeper()"><span class="icon">💣</span>扫雷</div>
+            <div class="game-card" onclick="startJump()"><span class="icon">🏃</span>像素跳跃</div>
+            <div class="game-card" onclick="startMemory()"><span class="icon">🧠</span>记忆翻牌</div>
+        </div>
+    </div>
+
+    <div class="game-page" id="game-2048">
+        <button class="back-btn" onclick="exitGame('game-2048')">← 返回</button>
+        <button class="reset-btn" onclick="resetWithConfirm('2048')">↺ 重置</button>
+        <div class="game-info" style="position:absolute;top:5px;right:80px;">⭐<span id="score-2048">0</span></div>
+        <div class="grid-2048" id="grid-2048"></div>
+    </div>
+
+    <div class="game-page" id="game-tictactoe">
+        <button class="back-btn" onclick="exitGame('game-tictactoe')">← 返回</button>
+        <button class="reset-btn" onclick="resetWithConfirm('tictactoe')">↺ 重置</button>
+        <div class="game-info" style="margin-bottom:5px;">🎯 你:❌  AI:⭕</div>
+        <div class="ttt-board" id="ttt-board"></div>
+        <div class="game-info" style="margin-top:5px;">🏆你:<span id="ttt-player-wins">0</span> AI:<span id="ttt-ai-wins">0</span> 平:<span id="ttt-draws">0</span></div>
+    </div>
+
+    <div class="game-page" id="game-minesweeper">
+        <button class="back-btn" onclick="exitMinesweeper()">← 返回</button>
+        <button class="reset-btn" onclick="resetMinesweeper()">↺ 重置</button>
+        <div style="display:flex;gap:10px;align-items:center;margin:5px;"><div class="game-info">💣 扫雷 (12雷)</div><button class="gift-btn" id="minesweeper-vision-btn" onclick="useMinesweeperVision()" disabled>👁️透视 (0)</button></div>
+        <div class="board" id="minesweeper-board"></div>
+    </div>
+
+    <div class="game-page" id="game-jump">
+        <button class="back-btn" onclick="exitJump()">← 返回</button>
+        <button class="reset-btn" onclick="resetJump()">↺ 重置</button>
+        <div style="display:flex;gap:15px;align-items:center;margin:5px;flex-wrap:wrap;justify-content:center;">
+            <div class="game-info">🏃 距离: <span id="jump-distance">0</span> m</div>
+            <button class="gift-btn" id="jump-shield-btn" onclick="useJumpShield()" disabled>🛡️无敌 (0)</button>
+            <button class="slow-mode-btn" id="slow-mode-btn" onclick="toggleSlowMode()">慢速模式: 关</button>
+            <button class="hard-mode-btn" id="hard-mode-btn" onclick="toggleHardMode()">困难: 关</button>
+        </div>
+        <canvas id="jump-canvas"></canvas>
+        <div class="jump-mobile-controls" id="jump-mobile-btns">
+            <button class="jump-mobile-btn" ontouchstart="jumpMobile('up')" style="margin-right:auto;">⬆️</button>
+            <button class="jump-mobile-btn" ontouchstart="jumpMobile('down')" ontouchend="jumpMobile('up')" style="margin-left:20px;">⬇️</button>
+        </div>
+    </div>
+
+    <div class="game-page" id="game-memory">
+        <button class="back-btn" onclick="exitMemory()">← 返回</button>
+        <button class="reset-btn" onclick="resetMemory()">↺ 重置</button>
+        <div class="game-info" style="margin:10px;">🕹️ 找到所有配对！ 步数：<span id="memory-moves">0</span></div>
+        <div class="memory-board" id="memory-board"></div>
+    </div>
+
+    <div class="page" id="shop-page">
+        <button class="back-btn" onclick="showPage('home-page')">← 返回</button>
+        <div style="font-size:1.4rem;color:#f0c060;margin-bottom:10px;">🏪 商店</div>
+        <div style="color:#ffd700;margin:10px;">💰 金币：<span id="shop-gold-display">0</span></div>
+        <div class="shop-container">
+            <div class="shop-item"><div><div>🎁 贪吃蛇水果礼包</div><div style="font-size:0.7rem;color:#aaa;">获得60个水果 (冷却5秒)</div></div><button onclick="buyItem('snake_gift')">50💰</button></div>
+            <div class="shop-item"><div><div>🚫 五子棋禁下</div><div style="font-size:0.7rem;color:#aaa;">AI跳过2次落子</div></div><button onclick="buyItem('gomoku_skip')">90💰</button></div>
+            <div class="shop-item"><div><div>🛡️ 像素跳跃无敌盾</div><div style="font-size:0.7rem;color:#aaa;">使用后无敌3秒</div></div><button onclick="buyItem('jump_shield')">30💰</button></div>
+            <div class="shop-item"><div><div>👁️ 扫雷透视</div><div style="font-size:0.7rem;color:#aaa;">显示所有地雷5秒</div></div><button onclick="buyItem('minesweeper_vision')">40💰</button></div>
+            <div style="color:#888;margin-top:15px;">更多道具即将推出...</div>
+        </div>
+    </div>
+
+    <div id="iframe-layer">
+        <iframe id="game-iframe" src="about:blank" allow="autoplay; fullscreen"></iframe>
+    </div>
+
+    <img id="float-orb" src="wf.png" alt="">
+    <div id="float-menu">
+        <div class="float-menu-title">🎮 当前游戏</div>
+        <div class="float-menu-game" id="float-game-name">-</div>
+        <div class="float-menu-row">
+            <span>🎵 音乐</span>
+            <div class="toggle-switch active" id="float-music-switch" onclick="toggleFloatMusic()"></div>
+        </div>
+        <button class="float-menu-exit" onclick="closeGame()">🚪 退出游戏</button>
+    </div>
+
+    <div class="popup-overlay" id="popup-overlay"><div class="popup-box" id="popup-box"></div></div>
+</div>
+
+<script>
+    // ============================================================
+    // ===== 全局伪随机背景音乐（唯一音乐系统）=====
+    // ============================================================
+    const BGM_LIST = ['y1.mp3', 'y2.mp3', 'y3.mp3', 'y4.mp3'];
+    let currentMusic = null;
+    let currentMusicSrc = '';
+    let bgmEnabled = localStorage.getItem('wf_bgm') !== 'false';
+    let soundEnabled = localStorage.getItem('wf_sound') !== 'false';
+    let bgmQueue = [];
+
+    function shuffleArray(arr) {
+        const a = arr.slice();
+        for(let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function nextBgmSrc() {
+        if(bgmQueue.length === 0) {
+            bgmQueue = shuffleArray(BGM_LIST);
+            const lastIdx = bgmQueue.length - 1;
+            if(BGM_LIST.length > 1 && bgmQueue[lastIdx] === currentMusicSrc) {
+                const swapIdx = Math.floor(Math.random() * lastIdx);
+                [bgmQueue[lastIdx], bgmQueue[swapIdx]] = [bgmQueue[swapIdx], bgmQueue[lastIdx]];
+            }
+        }
+        return bgmQueue.pop();
+    }
+
+    function stopMusic() {
+        if(currentMusic) {
+            try { currentMusic.pause(); currentMusic.currentTime = 0; } catch(e) {}
+            currentMusic = null;
+        }
+    }
+
+    function playRandomMusic() {
+        if(!bgmEnabled || !soundEnabled) return;
+        if(currentMusic && !currentMusic.paused) return;
+        const src = nextBgmSrc();
+        currentMusicSrc = src;
+        try {
+            const audio = new Audio(src);
+            audio.loop = false;
+            audio.volume = 0.5;
+            audio.addEventListener('ended', () => {
+                currentMusic = null;
+                playRandomMusic();
+            });
+            audio.play().then(() => { currentMusic = audio; })
+                       .catch(() => { currentMusic = null; });
+        } catch(e) {}
+    }
+
+    function tryStartMusicOnFirstInteraction() {
+        const handler = () => {
+            document.removeEventListener('touchstart', handler);
+            document.removeEventListener('click', handler);
+            playRandomMusic();
+        };
+        document.addEventListener('touchstart', handler, { passive:true });
+        document.addEventListener('click', handler);
+    }
+
+    // ========== 音效引擎 ==========
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+    function initAudio() {
+        if(!audioCtx) audioCtx = new AudioCtx();
+        if(audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch(e){} }
+    }
+    function playBeep(freq=440, duration=0.1, type='square') {
+        if(!soundEnabled) return;
+        try {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.value = freq; gain.gain.value = 0.3;
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+    function sfx(name) {
+        if(!soundEnabled) return;
+        if(name==='move') playBeep(200,0.05);
+        else if(name==='merge') playBeep(600,0.1);
+        else if(name==='place') playBeep(440,0.1);
+        else if(name==='eat') playBeep(800,0.1);
+        else if(name==='flag') playBeep(1000,0.1);
+        else if(name==='reveal') playBeep(300,0.08);
+        else if(name==='jump') playBeep(500,0.1);
+        else if(name==='duck') playBeep(200,0.1);
+        else if(name==='gameover') playBeep(100,0.3);
+        else if(name==='win') playBeep(800,0.2);
+        else if(name==='flip') playBeep(600,0.08);
+        else if(name==='match') playBeep(900,0.15);
+    }
+
+    // ========== 背景壁纸 ==========
+    function applyBackground() {
+        const mode = localStorage.getItem('wf_bg_mode') || 'image';
+        const layer = document.getElementById('bg-layer');
+        if(!layer) return;
+        if(mode === 'dynamic') {
+            if(layer.dataset.mode !== 'dynamic') {
+                layer.innerHTML = '<iframe src="bg.html" frameborder="0" scrolling="no"></iframe>';
+                layer.dataset.mode = 'dynamic';
+            }
+        } else {
+            if(layer.dataset.mode !== 'image') {
+                layer.innerHTML = '<img src="bg.png" alt="">';
+                layer.dataset.mode = 'image';
+            }
+        }
+        document.querySelectorAll('.bg-option').forEach(el => {
+            el.classList.toggle('active', el.dataset.mode === mode);
+        });
+    }
+    function setBgMode(mode) {
+        localStorage.setItem('wf_bg_mode', mode);
+        applyBackground();
+    }
+
+    // ========== 全局状态 ==========
+    let gold = parseInt(localStorage.getItem('wfgold') || '500');
+    let jumpShieldCount = parseInt(localStorage.getItem('wf_jump_shield') || '0');
+    let minesweeperVisionCount = parseInt(localStorage.getItem('wf_minesweeper_vision') || '0');
+    let snakeGiftCount = parseInt(localStorage.getItem('wf_snake_gift') || '0');
+    let gomokuSkipCount = parseInt(localStorage.getItem('wf_gomoku_skip') || '0');
+    let jumpSlowMode = localStorage.getItem('wf_jump_slow') === 'true';
+    let jumpHardMode = localStorage.getItem('wf_jump_hard') === 'true';
+    const isPC = !('ontouchstart' in window) && matchMedia('(pointer:fine)').matches;
+    let playerName = localStorage.getItem('wf_player_name') || '玩家';
+    let playerAvatar = localStorage.getItem('wf_player_avatar') || 'mo.png';
+    let npcEnabled = localStorage.getItem('wf_npc') !== 'false';
+    let splashChangedThisSession = false;
+
+    function saveGold() { localStorage.setItem('wfgold', gold); }
+    function addGold(amount) { gold += amount; saveGold(); updateShopDisplay(); }
+    function updateShopDisplay() { const el = document.getElementById('shop-gold-display'); if(el) el.textContent = gold; }
+    function updatePlayerDisplay() { document.getElementById('home-avatar').src = playerAvatar; document.getElementById('home-name').textContent = playerName || '玩家'; }
+
+    function compressImage(file, maxWidth, maxHeight, quality, callback) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                let width = img.width, height = img.height;
+                if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+                const canvas = document.createElement('canvas');
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function previewSetupAvatar(input) {
+        if(input.files && input.files[0]) {
+            compressImage(input.files[0], 120, 120, 0.7, function(dataUrl) {
+                playerAvatar = dataUrl;
+                document.getElementById('setup-avatar-preview').src = playerAvatar;
+                localStorage.setItem('wf_player_avatar', playerAvatar);
+            });
+        }
+    }
+    function savePlayerInfo() {
+        const name = document.getElementById('setup-name').value.trim();
+        if(!name) { showPopup('名字不能为空'); return; }
+        if(name === '婉芬') { showPopup('命名失败，无法使用此名字'); return; }
+        if(name.length > 20) { showPopup('名字不能超过20个字符'); return; }
+        playerName = name;
+        localStorage.setItem('wf_player_name', playerName);
+        if(playerAvatar) localStorage.setItem('wf_player_avatar', playerAvatar);
+        document.getElementById('player-setup-page').classList.remove('active');
+        showPage('home-page');
+        updatePlayerDisplay();
+        updateNpcDialogues();
+    }
+
+    function handleSettingsAvatarChange(input) {
+        if(input.files && input.files[0]) {
+            compressImage(input.files[0], 120, 120, 0.7, function(dataUrl) {
+                playerAvatar = dataUrl;
+                localStorage.setItem('wf_player_avatar', playerAvatar);
+                updateSettingsAvatarPreview();
+                updatePlayerDisplay();
+            });
+        }
+    }
+    function resetSettingsAvatar() {
+        playerAvatar = 'mo.png';
+        localStorage.setItem('wf_player_avatar', playerAvatar);
+        updateSettingsAvatarPreview();
+        updatePlayerDisplay();
+    }
+    function handleSettingsNameChange() {
+        const name = document.getElementById('settings-name-input').value.trim();
+        if(!name) return;
+        if(name === '婉芬') { showPopup('命名失败，无法使用此名字'); return; }
+        if(name.length > 20) { showPopup('名字不能超过20个字符'); return; }
+        playerName = name;
+        localStorage.setItem('wf_player_name', playerName);
+        updatePlayerDisplay();
+        updateNpcDialogues();
+    }
+    function updateSettingsAvatarPreview() {
+        const img = document.getElementById('settings-avatar-img');
+        if(img) img.src = playerAvatar;
+    }
+    function updateSettingsNameInput() {
+        const input = document.getElementById('settings-name-input');
+        if(input) input.value = playerName;
+    }
+    function updateSoundToggleUI() {
+        const sw = document.getElementById('sound-switch');
+        if(sw) sw.classList.toggle('active', soundEnabled);
+    }
+    function updateBGMToggleUI() {
+        const sw = document.getElementById('bgm-switch');
+        if(sw) sw.classList.toggle('active', bgmEnabled);
+        updateFloatMusicUI();
+    }
+    function updateNPCToggleUI() {
+        const sw = document.getElementById('npc-switch');
+        if(sw) sw.classList.toggle('active', npcEnabled);
+    }
+    function toggleSoundSetting() {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('wf_sound', soundEnabled);
+        updateSoundToggleUI();
+        if(!soundEnabled) stopMusic();
+        else playRandomMusic();
+    }
+    function toggleBGMSetting() {
+        bgmEnabled = !bgmEnabled;
+        localStorage.setItem('wf_bgm', bgmEnabled);
+        updateBGMToggleUI();
+        if(!bgmEnabled) stopMusic();
+        else playRandomMusic();
+    }
+    function toggleNPCSetting() {
+        npcEnabled = !npcEnabled;
+        localStorage.setItem('wf_npc', npcEnabled);
+        updateNPCToggleUI();
+        if(!npcEnabled) hideNPC();
+    }
+    function refreshSettingsUI() {
+        updateSettingsAvatarPreview();
+        updateSettingsNameInput();
+        updateSoundToggleUI();
+        updateBGMToggleUI();
+        updateNPCToggleUI();
+        const mode = localStorage.getItem('wf_bg_mode') || 'image';
+        document.querySelectorAll('.bg-option').forEach(el => {
+            el.classList.toggle('active', el.dataset.mode === mode);
+        });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        const navBtns = document.querySelectorAll('.settings-nav-btn');
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                navBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const panelId = 'panel-' + this.dataset.panel;
+                document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+                const panel = document.getElementById(panelId);
+                if(panel) panel.classList.add('active');
+            });
+        });
+    });
+
+    // ========== 全屏功能 ==========
+    function isFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+                  document.mozFullScreenElement || document.msFullscreenElement);
+    }
+    function toggleFullscreen() {
+        if (!isFullscreen()) {
+            const el = document.documentElement;
+            const req = el.requestFullscreen || el.webkitRequestFullscreen ||
+                        el.mozRequestFullScreen || el.msRequestFullscreen;
+            if (req) {
+                const result = req.call(el);
+                if (result && result.catch) {
+                    result.catch(() => {
+                        showPopup('当前环境不支持全屏，请尝试手动操作');
+                    });
+                }
+            } else {
+                showPopup('当前浏览器不支持全屏');
+            }
+        } else {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen ||
+                         document.mozCancelFullScreen || document.msExitFullscreen;
+            if (exit) exit.call(document);
+        }
+    }
+    function updateFullscreenButton() {
+        const txt = document.getElementById('fullscreen-text');
+        if (!txt) return;
+        txt.textContent = isFullscreen() ? '退出全屏' : '全屏';
+    }
+    ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(evt => {
+        document.addEventListener(evt, updateFullscreenButton);
+    });
+
+    // ========== NPC ==========
+    let npcContainer = null, npcTimer = null;
+    function createNPCContainer(pageId) {
+        if(npcContainer) npcContainer.remove();
+        npcContainer = document.createElement('div');
+        npcContainer.className = 'npc-container';
+        npcContainer.innerHTML = `<img src="wf.png"><span class="npc-dialog"></span>`;
+        document.getElementById(pageId).appendChild(npcContainer);
+    }
+    function showNPCDialog(text, duration = 3000) {
+        if(!npcEnabled || !npcContainer) return;
+        const dialog = npcContainer.querySelector('.npc-dialog');
+        dialog.textContent = text;
+        npcContainer.classList.add('show');
+        clearTimeout(npcTimer);
+        if(duration > 0) npcTimer = setTimeout(() => { npcContainer.classList.remove('show'); }, duration);
+    }
+    function hideNPC() { if(npcContainer) npcContainer.classList.remove('show'); }
+    function randomPick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
+    let npcDialogues = {
+        greet: [],
+        tictactoe: { think: [], win: ['嘿嘿，轻松获胜','你还是太年轻'], lose: ['啊？我输了？','不玩了不玩了'], hurry: ['快下快下'] },
+        minesweeper: { idle: [], help: ['看我的！我帮你点一个'], success: ['看到没？这就是实力！','哈哈哈，我厉害吧'], fail: ['这...是你手滑了','不关我事啊','你看错了'], hurry: ['快点快点','要不再多想想？'] }
+    };
+    function updateNpcDialogues() {
+        npcDialogues.greet = [
+            '哟，这不是我们的' + playerName + '吗？',
+            '欢迎回来，' + playerName + '！',
+            '嘿，' + playerName + '，今天运气不错哦~',
+            playerName + '，准备好挑战了吗？',
+            '欢迎！我是你的专属助手～'
+        ];
+        npcDialogues.tictactoe.think = ['让我想想……','这一步……有点意思','别催别催，我在酝酿'];
+        npcDialogues.minesweeper.idle = ['别怕，这个格子肯定安全……大概','依我多年经验，这里能点！','信我，我帮你选一个'];
+    }
+    updateNpcDialogues();
+
+    // ========== 页面切换 ==========
+    function showPage(pageId) {
+        closeIframeGame();
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        const page = document.getElementById(pageId);
+        if(page) page.classList.add('active');
+        if(pageId === 'shop-page') updateShopDisplay();
+        if(pageId === 'settings-page') refreshSettingsUI();
+        if(pageId === 'home-page') {
+            if(splashChangedThisSession) {
+                updateSplash();
+                splashChangedThisSession = false;
+            }
+        }
+        hideNPC();
+        if(npcContainer) { npcContainer.remove(); npcContainer = null; }
+        if(['game-tictactoe','game-minesweeper'].includes(pageId)) createNPCContainer(pageId);
+        if(pageId === 'home-page' && npcEnabled) {
+            createNPCContainer('home-page');
+            showNPCDialog(randomPick(npcDialogues.greet), 4000);
+        }
+    }
+    function exitGame(id) {
+        document.getElementById(id).classList.remove('active');
+        splashChangedThisSession = true;
+        showPage('game-select-page');
+    }
+    function resetWithConfirm(game) {
+        const names = { '2048':'2048', 'tictactoe':'井字棋' };
+        showConfirm(`确定要重置${names[game]}吗？`, () => {
+            if(game === '2048') reset2048();
+            else if(game === 'tictactoe') resetTicTacToe();
+        });
+    }
+
+    // ========== 弹窗 ==========
+    function showConfirm(msg, onConfirm, onCancel) {
+        const overlay = document.getElementById('popup-overlay');
+        const box = document.getElementById('popup-box');
+        box.innerHTML = `<div>${msg}</div><button id="popup-yes">确认</button><button id="popup-no">取消</button>`;
+        overlay.classList.add('active');
+        document.getElementById('popup-yes').onclick = () => { overlay.classList.remove('active'); onConfirm(); };
+        document.getElementById('popup-no').onclick = () => { overlay.classList.remove('active'); if(onCancel) onCancel(); };
+    }
+    function showPopup(msg, cb) {
+        const overlay = document.getElementById('popup-overlay');
+        const box = document.getElementById('popup-box');
+        box.innerHTML = `<div>${msg}</div><button id="popup-ok">确定</button>`;
+        overlay.classList.add('active');
+        document.getElementById('popup-ok').onclick = () => { overlay.classList.remove('active'); if(cb) cb(); };
+    }
+    function showTwoChoice(msg, btn1, cb1, btn2, cb2) {
+        const overlay = document.getElementById('popup-overlay');
+        const box = document.getElementById('popup-box');
+        box.innerHTML = `<div>${msg}</div><button id="popup-btn1">${btn1}</button><button id="popup-btn2">${btn2}</button>`;
+        overlay.classList.add('active');
+        document.getElementById('popup-btn1').onclick = () => { overlay.classList.remove('active'); cb1(); };
+        document.getElementById('popup-btn2').onclick = () => { overlay.classList.remove('active'); cb2(); };
+    }
+    function showChoose(title, options) {
+        const overlay = document.getElementById('popup-overlay');
+        const box = document.getElementById('popup-box');
+        let html = `<div style="font-size:1.1rem;color:#f0c060;margin-bottom:12px;">${title}</div>`;
+        options.forEach((opt, i) => {
+            html += `<button class="popup-choice-btn" data-i="${i}">${opt.label}</button>`;
+        });
+        html += `<button class="popup-choice-btn cancel" id="popup-cancel">取消</button>`;
+        box.innerHTML = html;
+        overlay.classList.add('active');
+        box.querySelectorAll('.popup-choice-btn[data-i]').forEach(btn => {
+            btn.onclick = () => {
+                overlay.classList.remove('active');
+                options[parseInt(btn.dataset.i)].cb();
+            };
+        });
+        document.getElementById('popup-cancel').onclick = () => overlay.classList.remove('active');
+    }
+
+    // ========== 商店购买 ==========
+    function buyItem(itemId) {
+        if(itemId === 'snake_gift' && gold >= 50) {
+            gold -= 50; snakeGiftCount++;
+            saveGold(); localStorage.setItem('wf_snake_gift', snakeGiftCount);
+        } else if(itemId === 'gomoku_skip' && gold >= 90) {
+            gold -= 90; gomokuSkipCount++;
+            saveGold(); localStorage.setItem('wf_gomoku_skip', gomokuSkipCount);
+        } else if(itemId === 'jump_shield' && gold >= 30) {
+            gold -= 30; jumpShieldCount++;
+            saveGold(); localStorage.setItem('wf_jump_shield', jumpShieldCount);
+        } else if(itemId === 'minesweeper_vision' && gold >= 40) {
+            gold -= 40; minesweeperVisionCount++;
+            saveGold(); localStorage.setItem('wf_minesweeper_vision', minesweeperVisionCount);
+        } else {
+            showPopup('金币不足！'); return;
+        }
+        updateShopDisplay();
+        showPopup('购买成功！');
+    }
+
+    // ========== 外部游戏浏览（贪吃蛇 / 五子棋） ==========
+    let currentGameName = '';
+
+    function chooseSnakeMode() {
+        showChoose('🐍 贪吃蛇', [
+            { label: '👤 单人游戏', cb: () => openGame('tcs.html', '贪吃蛇 · 单人') },
+            { label: '👥 多人游戏', cb: () => openGame('tc.html',  '贪吃蛇 · 多人') }
+        ]);
+    }
+    function chooseGomokuMode() {
+        showChoose('♟️ 五子棋', [
+            { label: '👤 单人模式', cb: () => openGame('wzq.html', '五子棋 · 单人') },
+            { label: '👥 多人模式', cb: () => openGame('wz.html',  '五子棋 · 多人') }
+        ]);
+    }
+
+    function openGame(url, name) {
+        currentGameName = name;
+        const layer = document.getElementById('iframe-layer');
+        const frame = document.getElementById('game-iframe');
+        frame.src = url;
+        layer.classList.add('active');
+        document.getElementById('float-orb').classList.add('active');
+        document.getElementById('float-menu').classList.remove('active');
+        document.getElementById('float-game-name').textContent = name;
+        updateFloatMusicUI();
+        hideNPC();
+        const orb = document.getElementById('float-orb');
+        orb.style.right = '14px';
+        orb.style.bottom = '14px';
+        orb.style.left = 'auto';
+        orb.style.top = 'auto';
+        orb.style.animation = '';
+        const menu = document.getElementById('float-menu');
+        menu.style.right = '14px';
+        menu.style.bottom = '80px';
+        menu.style.left = 'auto';
+        menu.style.top = 'auto';
+    }
+
+    function closeIframeGame() {
+        const layer = document.getElementById('iframe-layer');
+        if(!layer || !layer.classList.contains('active')) return;
+        layer.classList.remove('active');
+        document.getElementById('game-iframe').src = 'about:blank';
+        document.getElementById('float-orb').classList.remove('active');
+        document.getElementById('float-menu').classList.remove('active');
+        currentGameName = '';
+    }
+
+    function closeGame() {
+        showConfirm('确定要退出当前游戏吗？', () => {
+            closeIframeGame();
+            splashChangedThisSession = true;
+            showPage('game-select-page');
+        });
+    }
+
+    function toggleFloatMenu() {
+        const menu = document.getElementById('float-menu');
+        menu.classList.toggle('active');
+        updateFloatMusicUI();
+    }
+
+    function updateFloatMusicUI() {
+        const sw = document.getElementById('float-music-switch');
+        if(sw) sw.classList.toggle('active', bgmEnabled);
+    }
+
+    function toggleFloatMusic() {
+        toggleBGMSetting();
+    }
+
+    // ========== 悬浮球拖动逻辑 ==========
+    let isDragging = false;
+    let hasDragged = false;
+    let startX, startY, initialX, initialY;
+    const orbEl = document.getElementById('float-orb');
+    const menuEl = document.getElementById('float-menu');
+
+    orbEl.addEventListener('mousedown', dragStart);
+    orbEl.addEventListener('touchstart', dragStart, {passive: false});
+    document.addEventListener('mousemove', dragMove);
+    document.addEventListener('touchmove', dragMove, {passive: false});
+    document.addEventListener('mouseup', dragEnd);
+    document.addEventListener('touchend', dragEnd);
+
+    function dragStart(e) {
+        if(!orbEl.classList.contains('active')) return;
+        isDragging = true;
+        hasDragged = false;
+        const touch = e.touches ? e.touches[0] : e;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        const rect = orbEl.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+        orbEl.style.right = 'auto';
+        orbEl.style.bottom = 'auto';
+        orbEl.style.left = initialX + 'px';
+        orbEl.style.top = initialY + 'px';
+        orbEl.style.cursor = 'grabbing';
+        orbEl.style.animation = 'none';
+    }
+
+    function dragMove(e) {
+        if(!isDragging) return;
+        e.preventDefault();
+        const touch = e.touches ? e.touches[0] : e;
+        let dx = touch.clientX - startX;
+        let dy = touch.clientY - startY;
+        if(Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            if(!hasDragged) {
+                hasDragged = true;
+                menuEl.classList.remove('active');
+            }
+        }
+        let newX = initialX + dx;
+        let newY = initialY + dy;
+        const maxX = window.innerWidth - orbEl.offsetWidth;
+        const maxY = window.innerHeight - orbEl.offsetHeight;
+        newX = Math.max(0, Math.min(newX, maxX));
+        newY = Math.max(0, Math.min(newY, maxY));
+        orbEl.style.left = newX + 'px';
+        orbEl.style.top = newY + 'px';
+    }
+
+    function dragEnd(e) {
+        if(!isDragging) return;
+        isDragging = false;
+        orbEl.style.cursor = 'pointer';
+        orbEl.style.animation = '';
+        const rect = orbEl.getBoundingClientRect();
+        let menuX = rect.left - 150;
+        if(menuX < 10) menuX = 10;
+        let menuY = rect.top - 180;
+        if(menuY < 10) menuY = rect.bottom + 10;
+        menuEl.style.left = menuX + 'px';
+        menuEl.style.top = menuY + 'px';
+        menuEl.style.right = 'auto';
+        menuEl.style.bottom = 'auto';
+        if(hasDragged) {
+            setTimeout(() => { hasDragged = false; }, 300);
+        }
+    }
+
+    orbEl.addEventListener('click', (e) => {
+        if(hasDragged) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        e.stopPropagation();
+        toggleFloatMenu();
+    });
+
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('float-menu');
+        if(menu.classList.contains('active') && !e.target.closest('#float-orb') && !e.target.closest('#float-menu')) {
+            menu.classList.remove('active');
+        }
+    });
+
+    // ========== 2048 ==========
+    let grid2048, score2048, touchStartX, touchStartY;
+    function start2048() {
+        showPage('game-2048');
+        document.getElementById('game-2048').classList.add('active');
+        grid2048 = Array.from({length:4}, () => Array(4).fill(0));
+        score2048 = 0;
+        document.getElementById('score-2048').textContent = '0';
+        addRandom2048(); addRandom2048();
+        render2048();
+        const g = document.getElementById('grid-2048');
+        g.addEventListener('touchstart', e => {
+            e.preventDefault();
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, {passive:false});
+        g.addEventListener('touchend', e => {
+            e.preventDefault();
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            if(Math.abs(dx) < 25 && Math.abs(dy) < 25) return;
+            if(Math.abs(dx) > Math.abs(dy)) slide2048(dx > 0 ? 'right' : 'left');
+            else slide2048(dy > 0 ? 'down' : 'up');
+        }, {passive:false});
+        if(isPC) {
+            window._key2048 = (e) => {
+                if(document.getElementById('game-2048').classList.contains('active')) {
+                    if(e.key==='ArrowUp') slide2048('up');
+                    else if(e.key==='ArrowDown') slide2048('down');
+                    else if(e.key==='ArrowLeft') slide2048('left');
+                    else if(e.key==='ArrowRight') slide2048('right');
+                }
+            };
+            window.addEventListener('keydown', window._key2048);
+        }
+    }
+    function reset2048() {
+        grid2048 = Array.from({length:4}, () => Array(4).fill(0));
+        score2048 = 0;
+        document.getElementById('score-2048').textContent = '0';
+        addRandom2048(); addRandom2048();
+        render2048();
+    }
+    function addRandom2048() {
+        const empty = [];
+        for(let r=0;r<4;r++) for(let c=0;c<4;c++) if(grid2048[r][c]===0) empty.push({r,c});
+        if(empty.length) {
+            const {r,c} = empty[Math.floor(Math.random()*empty.length)];
+            grid2048[r][c] = Math.random() < 0.9 ? 2 : 4;
+        }
+    }
+    function render2048() {
+        const g = document.getElementById('grid-2048');
+        g.innerHTML = '';
+        for(let r=0;r<4;r++) for(let c=0;c<4;c++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if(grid2048[r][c]) {
+                cell.textContent = grid2048[r][c];
+                cell.setAttribute('data-v', grid2048[r][c]);
+            }
+            g.appendChild(cell);
+        }
+        document.getElementById('score-2048').textContent = score2048;
+    }
+    function slide2048(dir) {
+        let moved = false;
+        if(dir === 'left') {
+            for(let r=0;r<4;r++) {
+                let row = grid2048[r].filter(v => v);
+                for(let i=0;i<row.length-1;i++) {
+                    if(row[i] === row[i+1]) { row[i] *= 2; score2048 += row[i]; row.splice(i+1,1); row.push(0); }
+                }
+                while(row.length < 4) row.push(0);
+                if(row.join() !== grid2048[r].join()) moved = true;
+                grid2048[r] = row;
+            }
+        } else if(dir === 'right') {
+            for(let r=0;r<4;r++) {
+                let row = grid2048[r].filter(v => v);
+                for(let i=row.length-1;i>0;i--) {
+                    if(row[i] === row[i-1]) { row[i] *= 2; score2048 += row[i]; row.splice(i-1,1); row.unshift(0); }
+                }
+                while(row.length < 4) row.unshift(0);
+                if(row.join() !== grid2048[r].join()) moved = true;
+                grid2048[r] = row;
+            }
+        } else if(dir === 'up') {
+            for(let c=0;c<4;c++) {
+                let col = [grid2048[0][c],grid2048[1][c],grid2048[2][c],grid2048[3][c]].filter(v => v);
+                for(let i=0;i<col.length-1;i++) {
+                    if(col[i] === col[i+1]) { col[i] *= 2; score2048 += col[i]; col.splice(i+1,1); col.push(0); }
+                }
+                while(col.length < 4) col.push(0);
+                for(let r=0;r<4;r++) {
+                    if(grid2048[r][c] !== col[r]) moved = true;
+                    grid2048[r][c] = col[r];
+                }
+            }
+        } else if(dir === 'down') {
+            for(let c=0;c<4;c++) {
+                let col = [grid2048[0][c],grid2048[1][c],grid2048[2][c],grid2048[3][c]].filter(v => v);
+                for(let i=col.length-1;i>0;i--) {
+                    if(col[i] === col[i-1]) { col[i] *= 2; score2048 += col[i]; col.splice(i-1,1); col.unshift(0); }
+                }
+                while(col.length < 4) col.unshift(0);
+                for(let r=0;r<4;r++) {
+                    if(grid2048[r][c] !== col[r]) moved = true;
+                    grid2048[r][c] = col[r];
+                }
+            }
+        }
+        if(moved) {
+            sfx('move');
+            addRandom2048();
+            render2048();
+            if(grid2048.some(r => r.some(v => v >= 2048))) {
+                addGold(15); sfx('win'); showPopup('🎉 2048！+15💰');
+            }
+            if(is2048Lost()) {
+                sfx('gameover');
+                showPopup('游戏结束', () => reset2048());
+            }
+        }
+    }
+    function is2048Lost() {
+        for(let r=0;r<4;r++) for(let c=0;c<4;c++) {
+            if(!grid2048[r][c]) return false;
+            if(c<3 && grid2048[r][c] === grid2048[r][c+1]) return false;
+            if(r<3 && grid2048[r][c] === grid2048[r+1][c]) return false;
+        }
+        return true;
+    }
+
+    // ========== 井字棋 ==========
+    let tBoard, tPW=0, tAW=0, tDr=0, tOver;
+    function startTicTacToe() {
+        showPage('game-tictactoe');
+        document.getElementById('game-tictactoe').classList.add('active');
+        resetTicTacToe();
+    }
+    function resetTicTacToe() {
+        tBoard = Array.from({length:3}, () => Array(3).fill(null));
+        tOver = false;
+        renderTBoard();
+        document.getElementById('ttt-player-wins').textContent = tPW;
+        document.getElementById('ttt-ai-wins').textContent = tAW;
+        document.getElementById('ttt-draws').textContent = tDr;
+    }
+    function renderTBoard() {
+        const b = document.getElementById('ttt-board');
+        b.innerHTML = '';
+        for(let r=0;r<3;r++) for(let c=0;c<3;c++) {
+            const cell = document.createElement('div');
+            cell.className = 'ttt-cell';
+            cell.textContent = tBoard[r][c] || '';
+            if(tBoard[r][c] === 'X') cell.classList.add('X');
+            if(tBoard[r][c] === 'O') cell.classList.add('O');
+            cell.addEventListener('click', () => tPlayerMove(r,c));
+            b.appendChild(cell);
+        }
+    }
+    function tPlayerMove(r,c) {
+        if(tOver || tBoard[r][c]) return;
+        tBoard[r][c] = 'X';
+        sfx('place');
+        renderTBoard();
+        if(checkTWin('X')) {
+            tOver = true; tPW++; addGold(5); sfx('win');
+            document.getElementById('ttt-player-wins').textContent = tPW;
+            showNPCDialog(randomPick(npcDialogues.tictactoe.lose), 2000);
+            showPopup('🎉 你赢了！+5💰', resetTicTacToe);
+            return;
+        }
+        if(tBoard.every(r => r.every(v => v))) {
+            tOver = true; tDr++;
+            document.getElementById('ttt-draws').textContent = tDr;
+            showPopup('平局！', resetTicTacToe);
+            return;
+        }
+        showNPCDialog(randomPick(npcDialogues.tictactoe.think), 2000);
+        setTimeout(tAIMove, 500);
+    }
+    function tAIMove() {
+        if(tOver) return;
+        let bestScore = -Infinity, bestMove = {r:0,c:0};
+        for(let r=0;r<3;r++) for(let c=0;c<3;c++) {
+            if(tBoard[r][c]) continue;
+            tBoard[r][c] = 'O';
+            const score = minimax(false, 0);
+            tBoard[r][c] = null;
+            if(score > bestScore) { bestScore = score; bestMove = {r,c}; }
+        }
+        tBoard[bestMove.r][bestMove.c] = 'O';
+        sfx('place');
+        renderTBoard();
+        if(checkTWin('O')) {
+            tOver = true; tAW++; sfx('gameover');
+            document.getElementById('ttt-ai-wins').textContent = tAW;
+            showNPCDialog(randomPick(npcDialogues.tictactoe.win), 2000);
+            showPopup('AI赢了！', resetTicTacToe);
+            return;
+        }
+        if(tBoard.every(r => r.every(v => v))) {
+            tOver = true; tDr++;
+            document.getElementById('ttt-draws').textContent = tDr;
+            showPopup('平局！', resetTicTacToe);
+        }
+    }
+    function minimax(isMax, depth) {
+        if(checkTWin('O')) return 10 - depth;
+        if(checkTWin('X')) return depth - 10;
+        if(tBoard.every(r => r.every(v => v))) return 0;
+        if(isMax) {
+            let best = -Infinity;
+            for(let r=0;r<3;r++) for(let c=0;c<3;c++) {
+                if(!tBoard[r][c]) {
+                    tBoard[r][c] = 'O';
+                    const score = minimax(false, depth+1);
+                    tBoard[r][c] = null;
+                    best = Math.max(best, score);
+                }
+            }
+            return best;
+        } else {
+            let best = Infinity;
+            for(let r=0;r<3;r++) for(let c=0;c<3;c++) {
+                if(!tBoard[r][c]) {
+                    tBoard[r][c] = 'X';
+                    const score = minimax(true, depth+1);
+                    tBoard[r][c] = null;
+                    best = Math.min(best, score);
+                }
+            }
+            return best;
+        }
+    }
+    function checkTWin(p) {
+        for(let i=0;i<3;i++) {
+            if(tBoard[i][0]===p && tBoard[i][1]===p && tBoard[i][2]===p) return true;
+            if(tBoard[0][i]===p && tBoard[1][i]===p && tBoard[2][i]===p) return true;
+        }
+        return (tBoard[0][0]===p && tBoard[1][1]===p && tBoard[2][2]===p) ||
+               (tBoard[0][2]===p && tBoard[1][1]===p && tBoard[2][0]===p);
+    }
+
+    // ========== 扫雷 ==========
+    let minesweeperBoard, minesweeperRows=9, minesweeperCols=9, minesCount=12;
+    let minesweeperGameOver, minesweeperRevealed, minesweeperVisionActive=false;
+    let minesweeperVisionTimer=null, minesweeperLastAction=0, minesweeperCheckInterval=null;
+
+    function startMinesweeper() {
+        showPage('game-minesweeper');
+        document.getElementById('game-minesweeper').classList.add('active');
+        resetMinesweeper();
+        minesweeperLastAction = Date.now();
+        if(minesweeperCheckInterval) clearInterval(minesweeperCheckInterval);
+        minesweeperCheckInterval = setInterval(() => {
+            if(!minesweeperGameOver && npcEnabled && Date.now() - minesweeperLastAction > 60000) {
+                showNPCDialog(randomPick(npcDialogues.minesweeper.help), 1500);
+                setTimeout(() => {
+                    const hidden = [];
+                    for(let r=0;r<minesweeperRows;r++) for(let c=0;c<minesweeperCols;c++)
+                        if(!minesweeperBoard[r][c].revealed && !minesweeperBoard[r][c].flagged) hidden.push({r,c});
+                    if(hidden.length > 0) {
+                        const pick = hidden[Math.floor(Math.random()*hidden.length)];
+                        revealCell(pick.r, pick.c);
+                        minesweeperLastAction = Date.now();
+                    }
+                }, 1500);
+            }
+        }, 30000);
+    }
+    function resetMinesweeper() {
+        minesweeperGameOver = false;
+        minesweeperRevealed = 0;
+        minesweeperVisionActive = false;
+        if(minesweeperVisionTimer) clearTimeout(minesweeperVisionTimer);
+        if(minesweeperCheckInterval) clearInterval(minesweeperCheckInterval);
+        minesweeperBoard = Array.from({length:minesweeperRows}, () =>
+            Array.from({length:minesweeperCols}, () => ({mine:false, revealed:false, flagged:false, adjacent:0}))
+        );
+        let placed = 0;
+        while(placed < minesCount) {
+            const r = Math.floor(Math.random()*minesweeperRows);
+            const c = Math.floor(Math.random()*minesweeperCols);
+            if(!minesweeperBoard[r][c].mine) { minesweeperBoard[r][c].mine = true; placed++; }
+        }
+        for(let r=0;r<minesweeperRows;r++) for(let c=0;c<minesweeperCols;c++) {
+            if(minesweeperBoard[r][c].mine) continue;
+            let count = 0;
+            for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) {
+                const nr=r+dr, nc=c+dc;
+                if(nr>=0&&nr<minesweeperRows&&nc>=0&&nc<minesweeperCols&&minesweeperBoard[nr][nc].mine) count++;
+            }
+            minesweeperBoard[r][c].adjacent = count;
+        }
+        renderMinesweeper();
+        updateMinesweeperVisionButton();
+    }
+    function renderMinesweeper() {
+        const boardEl = document.getElementById('minesweeper-board');
+        boardEl.style.gridTemplateColumns = `repeat(${minesweeperCols}, 30px)`;
+        boardEl.innerHTML = '';
+        for(let r=0;r<minesweeperRows;r++) for(let c=0;c<minesweeperCols;c++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.r = r; cell.dataset.c = c;
+            let pressTimer; let longPress = false;
+            cell.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                pressTimer = setTimeout(() => { longPress = true; toggleFlag(r,c); sfx('flag'); }, 600);
+            });
+            cell.addEventListener('touchend', (e) => {
+                clearTimeout(pressTimer);
+                if(!longPress) revealCell(r,c);
+                longPress = false;
+            });
+            cell.addEventListener('click', () => revealCell(r,c));
+            cell.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleFlag(r,c); sfx('flag'); });
+            updateCellDisplay(cell, r, c);
+            boardEl.appendChild(cell);
+        }
+    }
+    function updateCellDisplay(cell, r, c) {
+        const data = minesweeperBoard[r][c];
+        cell.style.background = data.revealed ? '#bbb' : '#999';
+        cell.textContent = '';
+        if(data.flagged && !data.revealed) {
+            cell.textContent = '🚩';
+            cell.style.background = '#d44';
+        } else if(data.revealed) {
+            if(data.mine) { cell.textContent = '💣'; cell.style.background = '#f55'; }
+            else if(data.adjacent > 0) { cell.textContent = data.adjacent; }
+        }
+        if(minesweeperVisionActive && data.mine && !data.revealed) {
+            cell.textContent = '💣';
+            cell.style.background = '#e6c300';
+        }
+    }
+    function revealCell(r,c) {
+        if(minesweeperGameOver || minesweeperBoard[r][c].revealed || minesweeperBoard[r][c].flagged) return;
+        minesweeperLastAction = Date.now();
+        minesweeperBoard[r][c].revealed = true;
+        minesweeperRevealed++;
+        if(minesweeperBoard[r][c].mine) {
+            minesweeperGameOver = true;
+            for(let i=0;i<minesweeperRows;i++) for(let j=0;j<minesweeperCols;j++)
+                if(minesweeperBoard[i][j].mine) minesweeperBoard[i][j].revealed = true;
+            renderMinesweeper();
+            sfx('gameover');
+            showPopup('💣 踩到雷了！游戏结束', resetMinesweeper);
+            return;
+        }
+        if(minesweeperBoard[r][c].adjacent === 0) {
+            for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) {
+                const nr=r+dr, nc=c+dc;
+                if(nr>=0&&nr<minesweeperRows&&nc>=0&&nc<minesweeperCols) revealCell(nr,nc);
+            }
+        }
+        if(minesweeperRevealed === minesweeperRows*minesweeperCols - minesCount) {
+            minesweeperGameOver = true;
+            addGold(10); sfx('win');
+            showPopup('🎉 扫雷成功！+10💰', resetMinesweeper);
+        }
+        renderMinesweeper();
+    }
+    function toggleFlag(r,c) {
+        if(minesweeperGameOver || minesweeperBoard[r][c].revealed) return;
+        minesweeperBoard[r][c].flagged = !minesweeperBoard[r][c].flagged;
+        renderMinesweeper();
+    }
+    function exitMinesweeper() {
+        if(minesweeperCheckInterval) clearInterval(minesweeperCheckInterval);
+        exitGame('game-minesweeper');
+    }
+    function useMinesweeperVision() {
+        if(!minesweeperGameOver && minesweeperVisionCount > 0 && !minesweeperVisionActive) {
+            minesweeperVisionCount--;
+            localStorage.setItem('wf_minesweeper_vision', minesweeperVisionCount);
+            updateMinesweeperVisionButton();
+            minesweeperVisionActive = true;
+            renderMinesweeper();
+            sfx('flag');
+            if(minesweeperVisionTimer) clearTimeout(minesweeperVisionTimer);
+            minesweeperVisionTimer = setTimeout(() => {
+                minesweeperVisionActive = false;
+                renderMinesweeper();
+            }, 5000);
+        }
+    }
+    function updateMinesweeperVisionButton() {
+        const btn = document.getElementById('minesweeper-vision-btn');
+        if(btn) {
+            btn.disabled = minesweeperVisionCount <= 0 || minesweeperVisionActive;
+            btn.textContent = `👁️透视 (${minesweeperVisionCount})`;
+        }
+    }
+
+    // ========== 像素跳跃 ==========
+    let jumpCanvas, jumpCtx, jumpPlayer, jumpObstacles, jumpGameOver, jumpActive;
+    let jumpSpeed, jumpDistance, jumpFrameId, groundY;
+    let jumpInvincible=false, jumpInvincibleTimer=null, jumpClouds=[], lastObstacleX=0;
+
+    function toggleSlowMode() {
+        jumpSlowMode = !jumpSlowMode;
+        localStorage.setItem('wf_jump_slow', jumpSlowMode);
+        updateSlowButton();
+    }
+    function updateSlowButton() {
+        const btn = document.getElementById('slow-mode-btn');
+        if(btn) {
+            btn.textContent = jumpSlowMode ? '慢速模式: 开' : '慢速模式: 关';
+            btn.classList.toggle('active', jumpSlowMode);
+        }
+    }
+    function toggleHardMode() {
+        jumpHardMode = !jumpHardMode;
+        localStorage.setItem('wf_jump_hard', jumpHardMode);
+        updateHardButton();
+    }
+    function updateHardButton() {
+        const btn = document.getElementById('hard-mode-btn');
+        if(btn) {
+            btn.textContent = jumpHardMode ? '困难: 开' : '困难: 关';
+            btn.classList.toggle('active', jumpHardMode);
+        }
+    }
+    function startJump() {
+        showPage('game-jump');
+        document.getElementById('game-jump').classList.add('active');
+        jumpCanvas = document.getElementById('jump-canvas');
+        jumpCtx = jumpCanvas.getContext('2d');
+        updateSlowButton(); updateHardButton();
+        resetJump();
+    }
+    function resetJump() {
+        if(jumpFrameId) cancelAnimationFrame(jumpFrameId);
+        jumpActive = true;
+        jumpGameOver = false;
+        jumpDistance = 0;
+        groundY = jumpCanvas.height - 30;
+        jumpPlayer = { x:40, y:groundY-30, vy:0, width:20, height:30, grounded:true, ducking:false };
+        jumpObstacles = [];
+        lastObstacleX = jumpCanvas.width;
+        jumpClouds = [];
+        for(let i=0;i<3;i++) jumpClouds.push({ x: Math.random()*jumpCanvas.width, y: 20 + Math.random()*40, w: 40 + Math.random()*20 });
+        jumpInvincible = false;
+        if(jumpInvincibleTimer) clearTimeout(jumpInvincibleTimer);
+        updateJumpShieldButton();
+        if(window._jumpKey) window.removeEventListener('keydown', window._jumpKey);
+        if(window._jumpKeyUp) window.removeEventListener('keyup', window._jumpKeyUp);
+        window._jumpKey = (e) => {
+            if(!jumpActive || !document.getElementById('game-jump').classList.contains('active')) return;
+            if(e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); jumpPlayerJump(); }
+            if(e.key === 'ArrowDown') { e.preventDefault(); jumpPlayerDuck(true); }
+        };
+        window._jumpKeyUp = (e) => { if(e.key === 'ArrowDown') jumpPlayerDuck(false); };
+        window.addEventListener('keydown', window._jumpKey);
+        window.addEventListener('keyup', window._jumpKeyUp);
+        document.getElementById('jump-mobile-btns').style.display = isPC ? 'none' : 'flex';
+        jumpLoop();
+    }
+    function jumpPlayerJump() {
+        if(jumpPlayer.grounded && !jumpPlayer.ducking) {
+            jumpPlayer.vy = -8;
+            jumpPlayer.grounded = false;
+            sfx('jump');
+        }
+    }
+    function jumpPlayerDuck(isDucking) {
+        if(jumpPlayer.grounded) {
+            jumpPlayer.ducking = isDucking;
+            jumpPlayer.height = isDucking ? 20 : 30;
+            jumpPlayer.y = groundY - jumpPlayer.height;
+            if(isDucking) sfx('duck');
+        }
+    }
+    function jumpMobile(action) {
+        if(!jumpActive) return;
+        if(action === 'up') {
+            if(jumpPlayer.ducking) jumpPlayerDuck(false);
+            else jumpPlayerJump();
+        }
+        if(action === 'down') jumpPlayerDuck(true);
+    }
+    function updateJumpSpeed() {
+        if(jumpSlowMode) { jumpSpeed = 4; return; }
+        jumpSpeed = Math.min(9, 5 + jumpDistance / 300);
+    }
+    function jumpLoop() {
+        if(!jumpActive) return;
+        jumpFrameId = requestAnimationFrame(jumpLoop);
+        updateJumpSpeed();
+        if(!jumpPlayer.grounded) {
+            jumpPlayer.vy += 0.4;
+            jumpPlayer.y += jumpPlayer.vy;
+            if(jumpPlayer.y >= groundY - jumpPlayer.height) {
+                jumpPlayer.y = groundY - jumpPlayer.height;
+                jumpPlayer.vy = 0;
+                jumpPlayer.grounded = true;
+            }
+        }
+        for(let obs of jumpObstacles) obs.x -= jumpSpeed;
+        lastObstacleX -= jumpSpeed;
+        jumpObstacles = jumpObstacles.filter(obs => obs.x > -50);
+        for(let cloud of jumpClouds) {
+            cloud.x -= jumpSpeed * 0.2;
+            if(cloud.x < -cloud.w) cloud.x = jumpCanvas.width + Math.random()*100;
+        }
+        const spawnRate = jumpHardMode ? 0.035 : 0.018;
+        if(Math.random() < spawnRate && jumpObstacles.length < 3) {
+            const type = jumpDistance > 1000 ? (Math.random() < 0.4 ? 'bird' : 'cactus') : 'cactus';
+            const minDist = jumpHardMode ? 120 : 200;
+            if(jumpObstacles.length === 0 || lastObstacleX - jumpCanvas.width < -minDist) {
+                if(type === 'cactus') jumpObstacles.push({ x: jumpCanvas.width, width: 15, height: 30, type: 'cactus' });
+                else jumpObstacles.push({ x: jumpCanvas.width, width: 20, height: 20, y: groundY-60, type: 'bird' });
+                lastObstacleX = jumpCanvas.width;
+            }
+        }
+        if(!jumpInvincible) {
+            const playerX = jumpPlayer.x, playerW = jumpPlayer.width, playerH = jumpPlayer.height;
+            for(let obs of jumpObstacles) {
+                if(obs.type === 'bird') {
+                    if(playerX < obs.x + obs.width && playerX + playerW > obs.x &&
+                       jumpPlayer.y < obs.y + obs.height && jumpPlayer.y + playerH > obs.y) {
+                        gameOverJump(); return;
+                    }
+                } else {
+                    if(playerX < obs.x + obs.width && playerX + playerW > obs.x &&
+                       jumpPlayer.y + playerH > groundY - obs.height) {
+                        gameOverJump(); return;
+                    }
+                }
+            }
+        }
+        jumpDistance += jumpSpeed / 10;
+        document.getElementById('jump-distance').textContent = Math.floor(jumpDistance);
+        drawJump();
+    }
+    function gameOverJump() {
+        jumpGameOver = true;
+        jumpActive = false;
+        sfx('gameover');
+        if(jumpFrameId) cancelAnimationFrame(jumpFrameId);
+        showTwoChoice(`游戏结束！跑了 ${Math.floor(jumpDistance)} 米`, '重新开始', resetJump, '退出游戏', () => { jumpActive = false; exitJump(); });
+    }
+    function drawJump() {
+        if(!jumpCtx) return;
+        const ctx = jumpCtx, w = jumpCanvas.width, h = jumpCanvas.height;
+        ctx.clearRect(0,0,w,h);
+        for(let cloud of jumpClouds) {
+            ctx.beginPath();
+            ctx.ellipse(cloud.x, cloud.y, cloud.w/2, cloud.w/4, 0, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fill();
+        }
+        ctx.fillStyle = jumpInvincible ? 'gold' : '#4ecdc4';
+        ctx.fillRect(jumpPlayer.x, jumpPlayer.y, jumpPlayer.width, jumpPlayer.height);
+        for(let obs of jumpObstacles) {
+            ctx.fillStyle = obs.type === 'bird' ? '#e74c3c' : '#2ecc71';
+            ctx.fillRect(obs.x, obs.type === 'bird' ? obs.y : groundY - obs.height, obs.width, obs.height);
+        }
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, groundY, w, 2);
+        ctx.fillText(`距离: ${Math.floor(jumpDistance)} m`, 20, 30);
+        if(jumpInvincible) { ctx.fillStyle = 'gold'; ctx.fillText('🛡️无敌', 20, 50); }
+    }
+    function useJumpShield() {
+        if(!jumpActive || jumpShieldCount <= 0) return;
+        jumpShieldCount--;
+        localStorage.setItem('wf_jump_shield', jumpShieldCount);
+        updateJumpShieldButton();
+        jumpInvincible = true;
+        if(jumpInvincibleTimer) clearTimeout(jumpInvincibleTimer);
+        jumpInvincibleTimer = setTimeout(() => { jumpInvincible = false; }, 3000);
+        sfx('eat');
+    }
+    function updateJumpShieldButton() {
+        const btn = document.getElementById('jump-shield-btn');
+        if(btn) {
+            btn.disabled = !jumpActive || jumpShieldCount <= 0;
+            btn.textContent = `🛡️无敌 (${jumpShieldCount})`;
+        }
+    }
+    function exitJump() {
+        jumpActive = false;
+        if(jumpFrameId) cancelAnimationFrame(jumpFrameId);
+        exitGame('game-jump');
+    }
+
+    // ========== 记忆翻牌 ==========
+    const MEMORY_EMOJIS = ['🍎','🍊','🍇','🍒','🌟','❤️','🔥','🎵','🌈','🍕','⚽','🐱','🐶','🐰','🦊','🐼'];
+    let memoryCards = [], memoryFlipped = [], memoryMatched = [], memoryMoves = 0, memoryLocked = false;
+
+    function startMemory() {
+        showPage('game-memory');
+        document.getElementById('game-memory').classList.add('active');
+        resetMemory();
+    }
+    function resetMemory() {
+        memoryMoves = 0;
+        memoryFlipped = [];
+        memoryMatched = [];
+        memoryLocked = false;
+        document.getElementById('memory-moves').textContent = '0';
+        const selected = [...MEMORY_EMOJIS].sort(() => Math.random() - 0.5).slice(0, 8);
+        memoryCards = [...selected, ...selected]
+            .sort(() => Math.random() - 0.5)
+            .map((emoji, index) => ({ emoji, id: index, flipped: false, matched: false }));
+        renderMemoryBoard();
+    }
+    function renderMemoryBoard() {
+        const board = document.getElementById('memory-board');
+        board.innerHTML = '';
+        memoryCards.forEach((card, idx) => {
+            const cardEl = document.createElement('div');
+            cardEl.className = 'memory-card';
+            if(card.matched) cardEl.classList.add('matched');
+            if(card.flipped || card.matched) cardEl.classList.add('revealed');
+            cardEl.textContent = card.flipped || card.matched ? card.emoji : '?';
+            cardEl.addEventListener('click', () => flipMemoryCard(idx));
+            board.appendChild(cardEl);
+        });
+    }
+    function flipMemoryCard(index) {
+        if(memoryLocked) return;
+        const card = memoryCards[index];
+        if(card.flipped || card.matched) return;
+        card.flipped = true;
+        sfx('flip');
+        memoryFlipped.push(index);
+        renderMemoryBoard();
+        if(memoryFlipped.length === 2) {
+            memoryLocked = true;
+            memoryMoves++;
+            document.getElementById('memory-moves').textContent = memoryMoves;
+            const idx1 = memoryFlipped[0], idx2 = memoryFlipped[1];
+            const card1 = memoryCards[idx1], card2 = memoryCards[idx2];
+            if(card1.emoji === card2.emoji) {
+                card1.matched = true;
+                card2.matched = true;
+                sfx('match');
+                memoryFlipped = [];
+                memoryLocked = false;
+                renderMemoryBoard();
+                if(memoryCards.every(c => c.matched)) {
+                    addGold(20); sfx('win');
+                    showPopup('🎉 全部找到！记忆大师！获得20💰', resetMemory);
+                }
+            } else {
+                setTimeout(() => {
+                    card1.flipped = false;
+                    card2.flipped = false;
+                    memoryFlipped = [];
+                    memoryLocked = false;
+                    renderMemoryBoard();
+                }, 800);
+            }
+        }
+    }
+    function exitMemory() { exitGame('game-memory'); }
+
+    // ========== 闪烁标语 ==========
+    const splashTexts = [
+        { text: "4.0！", rainbow: false },
+        { text: "试试不用作弊?", rainbow: false },
+        { text: "欢迎！", rainbow: false },
+        { text: "你有体验过这款游戏吗?", rainbow: false },
+        { text: "再来一局！", rainbow: false },
+        { text: "5.0来了?", rainbow: false },
+        { text: "Welcome!", rainbow: true }
+    ];
+    function updateSplash() {
+        const splash = document.getElementById('splash-text');
+        if(!splash) return;
+        const item = splashTexts[Math.floor(Math.random() * splashTexts.length)];
+        splash.textContent = item.text;
+        if(item.rainbow) {
+            splash.classList.add('rainbow');
+            splash.style.color = '';
+        } else {
+            splash.classList.remove('rainbow');
+            splash.style.color = '#f0c060';
+        }
+    }
+
+    // ========== 启动流程 ==========
+    function runBootSequence() {
+        const linesEl = document.getElementById('boot-lines');
+        const fillEl = document.getElementById('boot-progress-fill');
+        const stages = [
+            { text:'> 正在定位服务器...', progress:25 },
+            { text:'> 服务器已定位', progress:50 },
+            { text:'> 正在下载资源...', progress:75 },
+            { text:'> 配置完成', progress:100 }
+        ];
+        let idx = 0;
+        function showStage() {
+            if(idx >= stages.length) {
+                setTimeout(() => {
+                    document.getElementById('boot-page').classList.remove('active');
+                    if(!playerName || playerName === '玩家') showPage('player-setup-page');
+                    else showPage('home-page');
+                    localStorage.setItem('boot_done','1');
+                }, 300);
+                return;
+            }
+            const s = stages[idx];
+            const line = document.createElement('div');
+            line.className = 'boot-line';
+            line.textContent = s.text;
+            linesEl.appendChild(line);
+            fillEl.style.width = s.progress + '%';
+            idx++;
+            setTimeout(showStage, 600);
+        }
+        showStage();
+    }
+
+    // ========== 首次进入的 15 秒圆圈缓冲 ==========
+    function runFirstLoadScreen(onFinish) {
+        const overlay = document.getElementById('loading-overlay');
+        const ring = document.getElementById('loading-ring-fg');
+        const percentEl = document.getElementById('loading-percent');
+        const textEl = document.getElementById('loading-text');
+        const tipEl = document.getElementById('loading-tip');
+
+        const TOTAL_MS = 15000;
+        const RADIUS = 52;
+        const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+        ring.style.strokeDasharray = CIRCUMFERENCE;
+        ring.style.strokeDashoffset = CIRCUMFERENCE;
+
+        // 不同阶段文案，让加载看起来更"真实"
+        const stages = [
+            { until: 0.10, text: '正在连接服务器…' },
+            { until: 0.22, text: '正在校验资源完整性…' },
+            { until: 0.36, text: '正在加载游戏引擎…' },
+            { until: 0.52, text: '正在初始化图形模块…' },
+            { until: 0.66, text: '正在预热音乐与音效…' },
+            { until: 0.78, text: '正在准备游戏资源…' },
+            { until: 0.88, text: '正在配置游戏场景…' },
+            { until: 0.96, text: '正在完成最后的配置…' },
+            { until: 1.00, text: '即将进入游戏！' }
+        ];
+
+        const startTime = performance.now();
+        let lastPercent = -1;
+        let lastText = '';
+
+        function frame(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / TOTAL_MS, 1);
+            // 非线性：前段稍快，后段放缓，看起来更自然
+            let eased;
+            if (progress < 0.85) {
+                eased = progress * 1.02; // 稍微超前
+            } else {
+                eased = 0.867 + (progress - 0.85) * 0.88;
+            }
+            eased = Math.min(eased, 1);
+
+            const percent = Math.floor(eased * 100);
+            if (percent !== lastPercent) {
+                lastPercent = percent;
+                percentEl.textContent = percent + '%';
+                ring.style.strokeDashoffset = CIRCUMFERENCE * (1 - eased);
+            }
+
+            // 更新文案
+            let currentText = stages[stages.length - 1].text;
+            for (const s of stages) {
+                if (progress <= s.until) { currentText = s.text; break; }
+            }
+            if (currentText !== lastText) {
+                lastText = currentText;
+                textEl.textContent = currentText;
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(frame);
+            } else {
+                // 完成：标记已看过，淡出，然后进入启动流程
+                try { localStorage.setItem('wf_loading_shown', '1'); } catch(e) {}
+                tipEl.textContent = '加载完成，正在进入…';
+                setTimeout(() => {
+                    overlay.classList.add('fade-out');
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                        document.documentElement.classList.remove('first-load');
+                        if (onFinish) onFinish();
+                    }, 700);
+                }, 400);
+            }
+        }
+        requestAnimationFrame(frame);
+    }
+
+    // ========== 应用启动入口 ==========
+    function startApp() {
+        if (localStorage.getItem('boot_done') === '1') {
+            document.getElementById('boot-page').classList.remove('active');
+            if(!playerName || playerName === '玩家') showPage('player-setup-page');
+            else showPage('home-page');
+        } else {
+            runBootSequence();
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        applyBackground();
+        updatePlayerDisplay();
+        updateShopDisplay();
+        updateSettingsAvatarPreview();
+        updateSettingsNameInput();
+        updateSoundToggleUI();
+        updateBGMToggleUI();
+        updateNPCToggleUI();
+        updateFloatMusicUI();
+        updateNpcDialogues();
+        updateFullscreenButton();
+        tryStartMusicOnFirstInteraction();
+
+        const needFirstLoad = document.documentElement.classList.contains('first-load');
+        if (needFirstLoad) {
+            // 首次进入：先显示 15 秒圆圈缓冲，再走原有的启动流程
+            runFirstLoadScreen(() => {
+                startApp();
+            });
+        } else {
+            startApp();
+        }
+    });
+</script>
+</body>
+</html>

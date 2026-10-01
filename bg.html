@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Snow Mountain</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ---------- 噪声工具 ---------- */
+function hash(x, y) {
+  const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+  return n - Math.floor(n);
+}
+function vnoise(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = x - ix, fy = y - iy;
+  const ux = fx * fx * (3 - 2 * fx);
+  const uy = fy * fy * (3 - 2 * fy);
+  const a = hash(ix, iy);
+  const b = hash(ix + 1, iy);
+  const c = hash(ix, iy + 1);
+  const d = hash(ix + 1, iy + 1);
+  return a * (1 - ux) * (1 - uy) + b * ux * (1 - uy) + c * (1 - ux) * uy + d * ux * uy;
+}
+function fbm(x, y, oct) {
+  let amp = 0.5, freq = 1, sum = 0, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    sum += amp * vnoise(x * freq, y * freq);
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2.0;
+  }
+  return sum / norm;
+}
+
+/* ---------- 地形高度场（环形山脉 + 中央主峰） ---------- */
+function getTerrainHeight(x, z) {
+  const r = Math.sqrt(x * x + z * z);
+
+  // 中央主峰
+  let h = 320 * Math.exp(-(r * r) / (2 * 120 * 120));
+  
+  // 环形雪山群（像图片那样环绕，但留有开阔视野）
+  h += 260 * Math.exp(-Math.pow((r - 450) / 200, 2));
+  h += 300 * Math.exp(-Math.pow((r - 1000) / 400, 2));
+  h += 260 * Math.exp(-Math.pow((r - 1800) / 700, 2));
+
+  // 山谷
+  h -= 100 * Math.exp(-Math.pow((r - 220) / 120, 2));
+
+  // 地形细节噪声
+  if (r > 40) {
+    const mask = Math.min(1, (r - 40) / 200);
+    h += (fbm(x * 0.004, z * 0.004, 4) - 0.5) * 180 * mask;
+    h += (fbm(x * 0.015, z * 0.015, 3) - 0.5) * 40;
+    h += (fbm(x * 0.06, z * 0.06, 2) - 0.5) * 12;
+  }
+  return Math.max(0, h);
+}
+
+/* ---------- 基础场景 ---------- */
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0xbcd2e6, 0.0008);
+
+const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.5, 50000);
+camera.rotation.order = 'YXZ';
+
+const camY = getTerrainHeight(0, 0) + 28;
+camera.position.set(0, camY, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // 限制像素比，提升流畅度
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+/* ---------- 天空穹顶 ---------- */
+const skyUniforms = {
+  uTopColor: { value: new THREE.Color(0x4a88d8) },
+  uBotColor: { value: new THREE.Color(0xb8d4f0) },
+  uSunDir:   { value: new THREE.Vector3(0, 1, 0) },
+  uSunColor: { value: new THREE.Color(0xffffff) },
+  uStar:     { value: 0 }
+};
+
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide,
+  depthWrite: false,
+  fog: false,
+  uniforms: skyUniforms,
+  vertexShader: `
+    varying vec3 vDir;
+    void main() {
+      vDir = position;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vDir;
+    uniform vec3 uTopColor;
+    uniform vec3 uBotColor;
+    uniform vec3 uSunDir;
+    uniform vec3 uSunColor;
+    uniform float uStar;
+    float hash(vec3 p) {
+      return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+    }
+    void main() {
+      vec3 d = normalize(vDir);
+      float h = d.y;
+      float t = smoothstep(-0.28, 0.65, h);
+      vec3 col = mix(uBotColor, uTopColor, t);
+      float sd = max(dot(d, uSunDir), 0.0);
+      float disk = smoothstep(0.9985, 0.9997, sd);
+      float glow = pow(sd, 240.0) * 0.7 + pow(sd, 10.0) * 0.18;
+      col += uSunColor * (disk * 2.8 + glow);
+      if (uStar > 0.01) {
+        vec3 p = floor(d * 320.0);
+        float n = hash(p);
+        float star = smoothstep(0.9965, 1.0, n);
+        star *= (1.0 - disk);
+        col += vec3(0.9, 0.95, 1.0) * star * uStar * smoothstep(0.0, 0.2, h);
+      }
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `
+});
+
+const skyMesh = new THREE.Mesh(new THREE.SphereGeometry(18000, 32, 20), skyMat);
+skyMesh.frustumCulled = false;
+scene.add(skyMesh);
+
+/* ---------- 光照 ---------- */
+const sunLight = new THREE.DirectionalLight(0xffffff, 2.2);
+scene.add(sunLight);
+scene.add(sunLight.target);
+
+const hemiLight = new THREE.HemisphereLight(0xa8c8ee, 0x6a6a70, 1.0);
+scene.add(hemiLight);
+
+const ambLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambLight);
+
+/* ---------- 核心：方块雪山地形生成 ---------- */
+const VOXEL = 10;                 // 方块尺寸
+const MAX_RADIUS = 1500;          // 地形生成最大半径
+const CHUNK_SIZE = 10;            // 每个区块 10x10 个方块
+const CHUNK_RADIUS = Math.ceil(MAX_RADIUS / (VOXEL * CHUNK_SIZE));
+
+const boxGeo = new THREE.BoxGeometry(VOXEL, VOXEL, VOXEL);
+const boxMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+
+const terrainGroup = new THREE.Group();
+scene.add(terrainGroup);
+
+const _mat = new THREE.Matrix4();
+const _col = new THREE.Color();
+
+// 颜色定义（参考图片）
+const SNOW_COLOR = new THREE.Color(0xffffff);       // 纯白积雪
+const ROCK_COLOR_1 = new THREE.Color(0x2a3b4c);     // 深蓝灰岩石（暗部）
+const ROCK_COLOR_2 = new THREE.Color(0x3e5266);     // 浅蓝灰岩石（亮部）
+const SNOW_PATCH = new THREE.Color(0xf0f6ff);       // 岩石上点缀的雪块
+
+/* ============================================================
+   方块颜色逻辑（清晰雪线分层）
+   - 雪线以上：纯白雪块
+   - 雪线以下：深蓝灰岩石，随机点缀少量雪块
+   ============================================================ */
+function getVoxelColor(h, x, z, isTop, out) {
+  const r = Math.sqrt(x * x + z * z);
+  
+  // 雪线随位置起伏，制造自然的分界
+  const snowLineNoise = fbm(x * 0.004, z * 0.004, 3);
+  const snowLine = 200 + snowLineNoise * 80;  // 约 120 ~ 280
+
+  // 1. 基础积雪判定
+  let snowAmount = (h > snowLine) ? 1.0 : 0.0;
+
+  // 2. 岩石上的雪块点缀（在雪线以下，随机分布少量雪）
+  if (snowAmount < 0.5) {
+    const patchNoise = fbm(x * 0.06, z * 0.06, 2);
+    // 只有在噪声满足条件且位置较高时才出现雪块
+    if (patchNoise > 0.62 && h > snowLine * 0.6) {
+      snowAmount = 0.65; // 部分覆盖，呈现斑点状
+    }
+  }
+
+  // 3. 山脚处强制露岩（更接近图片的底部）
+  if (h < 80) {
+    snowAmount = 0.0;
+  }
+
+  // 4. 颜色混合
+  if (snowAmount > 0.9) {
+    out.copy(SNOW_COLOR);
+  } else if (snowAmount > 0.1) {
+    // 半雪半石，混合成带雪的岩石
+    out.copy(ROCK_COLOR_1).lerp(SNOW_COLOR, snowAmount * 0.8);
+  } else {
+    // 纯岩石，用噪声决定是深是浅
+    const rockMix = fbm(x * 0.02, z * 0.02, 2);
+    out.copy(ROCK_COLOR_1).lerp(ROCK_COLOR_2, rockMix);
+  }
+
+  // 轻微随机扰动，增强方块质感
+  const j = (Math.random() - 0.5) * 0.06;
+  out.r = Math.max(0, Math.min(1, out.r + j));
+  out.g = Math.max(0, Math.min(1, out.g + j));
+  out.b = Math.max(0, Math.min(1, out.b + j));
+}
+
+/* ============================================================
+   生成地形（带多种性能优化）
+   - 每个区块一个 InstancedMesh
+   - 只生成表面层及其下方几层（防止侧面空洞）
+   - 视锥剔除（Frustum Culling）
+   - 距离剔除（超过视距直接跳过）
+   ============================================================ */
+for (let cx = -CHUNK_RADIUS; cx <= CHUNK_RADIUS; cx++) {
+  for (let cz = -CHUNK_RADIUS; cz <= CHUNK_RADIUS; cz++) {
+    const positions = [];
+    const colors = [];
+
+    for (let ix = 0; ix < CHUNK_SIZE; ix++) {
+      for (let iz = 0; iz < CHUNK_SIZE; iz++) {
+        const gx = cx * CHUNK_SIZE + ix;
+        const gz = cz * CHUNK_SIZE + iz;
+        const gr = Math.sqrt(gx * gx + gz * gz);
+        if (gr > MAX_RADIUS / VOXEL) continue;
+
+        const wx = gx * VOXEL;
+        const wz = gz * VOXEL;
+
+        // 距离剔除：如果区块中心距离相机过远，直接跳过
+        const distToCam = Math.sqrt(wx * wx + wz * wz);
+        if (distToCam > 2800) continue; // 视距约 2800
+
+        const h = getTerrainHeight(wx, wz);
+        const topLayer = Math.round(h / VOXEL);
+        if (topLayer < 1) continue;
+
+        // 只生成顶部 4 层方块，大幅减少方块数量
+        const layers = topLayer >= 4 ? 4 : (topLayer >= 2 ? 3 : 1);
+        for (let dy = 0; dy < layers; dy++) {
+          const y = (topLayer - dy - 0.5) * VOXEL;
+          positions.push(wx, y, wz);
+          getVoxelColor(h, wx, wz, dy === 0, _col);
+          colors.push(_col.r, _col.g, _col.b);
+        }
+      }
+    }
+
+    if (positions.length === 0) continue;
+
+    const count = positions.length / 3;
+    const mesh = new THREE.InstancedMesh(boxGeo, boxMat, count);
+    mesh.matrixAutoUpdate = false;
+
+    for (let i = 0; i < count; i++) {
+      _mat.makeTranslation(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+      mesh.setMatrixAt(i, _mat);
+      _col.setRGB(colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2]);
+      mesh.setColorAt(i, _col);
+    }
+
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere();
+
+    terrainGroup.add(mesh);
+  }
+}
+
+/* ---------- 时间关键帧 ---------- */
+const KEYS = [
+  { h: 0,    top: 0x050a18, bot: 0x0a1428, sun: 0x8899cc, sunI: 0.15, hSky: 0x223050, hGnd: 0x080c14, hI: 0.40, amb: 0x2a3550, ambI: 0.30, star: 1.0 },
+  { h: 4.5,  top: 0x0a1428, bot: 0x1a2848, sun: 0x99aadd, sunI: 0.30, hSky: 0x2a3a5a, hGnd: 0x0a1018, hI: 0.50, amb: 0x3a4560, ambI: 0.40, star: 0.8 },
+  { h: 6.0,  top: 0x2a4a7a, bot: 0xc07a5a, sun: 0xffa060, sunI: 0.90, hSky: 0x506080, hGnd: 0x2a1a10, hI: 0.70, amb: 0x6a5a50, ambI: 0.50, star: 0.2 },
+  { h: 7.5,  top: 0x3a72b8, bot: 0xd8c0a0, sun: 0xffd8a0, sunI: 1.80, hSky: 0x88a8cc, hGnd: 0x4a4030, hI: 0.90, amb: 0x8899aa, ambI: 0.60, star: 0 },
+  { h: 12.0, top: 0x4a88d8, bot: 0xb8d4f0, sun: 0xffffff, sunI: 2.40, hSky: 0xa8c8ee, hGnd: 0x6a6a70, hI: 1.00, amb: 0xaabbcc, ambI: 0.70, star: 0 },
+  { h: 16.0, top: 0x4a80c8, bot: 0xb0cce8, sun: 0xfff0d8, sunI: 2.20, hSky: 0xa0c0e8, hGnd: 0x6a6050, hI: 1.00, amb: 0xaabbcc, ambI: 0.65, star: 0 },
+  { h: 18.5, top: 0x2a4a8a, bot: 0xd08050, sun: 0xff8040, sunI: 1.40, hSky: 0x6a6888, hGnd: 0x3a2818, hI: 0.80, amb: 0x807060, ambI: 0.50, star: 0 },
+  { h: 20.0, top: 0x101830, bot: 0x3a2848, sun: 0x8877aa, sunI: 0.50, hSky: 0x2a3050, hGnd: 0x14101c, hI: 0.55, amb: 0x404a68, ambI: 0.35, star: 0.5 },
+  { h: 22.0, top: 0x050a18, bot: 0x0a1428, sun: 0x8899cc, sunI: 0.15, hSky: 0x223050, hGnd: 0x080c14, hI: 0.40, amb: 0x2a3550, ambI: 0.30, star: 1.0 },
+  { h: 24.0, top: 0x050a18, bot: 0x0a1428, sun: 0x8899cc, sunI: 0.15, hSky: 0x223050, hGnd: 0x080c14, hI: 0.40, amb: 0x2a3550, ambI: 0.30, star: 1.0 }
+];
+
+for (const k of KEYS) {
+  k.topC  = new THREE.Color(k.top);
+  k.botC  = new THREE.Color(k.bot);
+  k.sunC  = new THREE.Color(k.sun);
+  k.hSkyC = new THREE.Color(k.hSky);
+  k.hGndC = new THREE.Color(k.hGnd);
+  k.ambC  = new THREE.Color(k.amb);
+}
+
+function findKeys(hour) {
+  let i = 0;
+  while (i < KEYS.length - 2 && hour >= KEYS[i + 1].h) i++;
+  return [KEYS[i], KEYS[i + 1]];
+}
+
+const _sunDirV = new THREE.Vector3();
+
+function updateTime() {
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+
+  const [k0, k1] = findKeys(hour);
+  const span = k1.h - k0.h;
+  let t = span > 0 ? (hour - k0.h) / span : 0;
+  t = Math.max(0, Math.min(1, t));
+
+  skyUniforms.uTopColor.value.copy(k0.topC).lerp(k1.topC, t);
+  skyUniforms.uBotColor.value.copy(k0.botC).lerp(k1.botC, t);
+  skyUniforms.uSunColor.value.copy(k0.sunC).lerp(k1.sunC, t);
+  skyUniforms.uStar.value = k0.star + (k1.star - k0.star) * t;
+
+  scene.fog.color.copy(skyUniforms.uBotColor.value);
+
+  sunLight.color.copy(skyUniforms.uSunColor.value);
+  sunLight.intensity = k0.sunI + (k1.sunI - k0.sunI) * t;
+
+  hemiLight.color.copy(k0.hSkyC).lerp(k1.hSkyC, t);
+  hemiLight.groundColor.copy(k0.hGndC).lerp(k1.hGndC, t);
+  hemiLight.intensity = k0.hI + (k1.hI - k0.hI) * t;
+
+  ambLight.color.copy(k0.ambC).lerp(k1.ambC, t);
+  ambLight.intensity = k0.ambI + (k1.ambI - k0.ambI) * t;
+
+  const angle = ((hour - 6) / 12) * Math.PI;
+  let lx = Math.cos(angle);
+  let ly = Math.sin(angle);
+  let lz = -0.35;
+  const len = Math.sqrt(lx * lx + ly * ly + lz * lz);
+  lx /= len; ly /= len; lz /= len;
+
+  if (ly < -0.05) {
+    _sunDirV.set(-lx, -ly, -lz);
+  } else {
+    _sunDirV.set(lx, ly, lz);
+  }
+
+  skyUniforms.uSunDir.value.copy(_sunDirV);
+
+  sunLight.position.copy(_sunDirV).multiplyScalar(8000);
+  sunLight.target.position.set(0, 0, 0);
+}
+
+/* ---------- 动画：旋转 + 上下浮动 ---------- */
+const clock = new THREE.Clock();
+let yaw = 0;
+const ROT_SPEED = 0.015;          // 缓慢旋转
+const FLOAT_AMP = 3.0;            // 上下浮动幅度
+const FLOAT_SPEED = 0.25;         // 浮动速度
+const BASE_Y = camY;
+const PITCH_AMP = 0.01;           // 俯仰浮动
+const PITCH_SPEED = 0.2;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const elapsed = clock.getElapsedTime();
+
+  updateTime();
+
+  // 水平旋转
+  yaw += ROT_SPEED * dt;
+  camera.rotation.y = yaw;
+
+  // 上下浮动
+  camera.position.y = BASE_Y + Math.sin(elapsed * FLOAT_SPEED) * FLOAT_AMP;
+
+  // 轻微俯仰
+  camera.rotation.x = -0.08 + Math.sin(elapsed * PITCH_SPEED) * PITCH_AMP;
+
+  // 天空跟随相机
+  skyMesh.position.copy(camera.position);
+
+  renderer.render(scene, camera);
+}
+
+/* ---------- 自适应 ---------- */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ---------- 禁用一切交互 ---------- */
+['click','mousedown','mouseup','touchstart','touchend','touchmove','contextmenu','longpress','pointerdown','pointerup'].forEach(ev => {
+  document.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); return false; }, { passive: false });
+});
+
+/* ---------- 启动 ---------- */
+updateTime();
+animate();
+</script>
+</body>
+</html>

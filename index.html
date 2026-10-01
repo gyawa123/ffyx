@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>婉芬游戏大挑战 4.0 · 下载中心</title>
+<style>
+:root{
+    --gold:#f0c060;
+    --accent:#4ecdc4;
+    --purple:#764ba2;
+    --pink:#f5576c;
+    --blue:#4da6ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+html,body{width:100%;min-height:100%;}
+body{
+    font-family:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    background:#0a0a14;
+    color:#fff;
+    overflow-x:hidden;
+    position:relative;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+}
+
+/* ============ 动态背景 bg.html ============ */
+#bg-layer{
+    position:fixed;
+    top:0;left:0;
+    width:100vw;height:100vh;
+    z-index:-2;
+    overflow:hidden;
+    background:#0a0a14;
+    pointer-events:none;
+}
+#bg-layer iframe{
+    position:absolute;
+    top:0;left:0;
+    width:100%;
+    height:100%;
+    border:0;
+    pointer-events:none;
+    display:block;
+}
+/* 暗色遮罩，让文字清晰 */
+#bg-overlay{
+    position:fixed;
+    top:0;left:0;
+    width:100vw;height:100vh;
+    z-index:-1;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(26,26,46,.45) 0%, rgba(8,8,16,.86) 68%),
+        linear-gradient(180deg, rgba(10,10,22,.55) 0%, rgba(10,10,22,.88) 100%);
+    pointer-events:none;
+}
+
+/* ============ 容器 ============ */
+.wrap{
+    position:relative;
+    z-index:1;
+    max-width:1000px;
+    margin:0 auto;
+    padding:0 20px 70px;
+}
+
+/* ============ 头部 ============ */
+header{
+    text-align:center;
+    padding:62px 0 30px;
+    animation:fadeUp .8s cubic-bezier(.2,.8,.3,1) both;
+}
+@keyframes fadeUp{
+    from{opacity:0;transform:translateY(28px);}
+    to{opacity:1;transform:translateY(0);}
+}
+
+.logo-badge{
+    display:inline-block;
+    font-size:.7rem;
+    letter-spacing:.4em;
+    color:var(--gold);
+    border:1px solid rgba(240,192,96,.4);
+    padding:6px 14px 6px 18px;
+    border-radius:100px;
+    background:rgba(240,192,96,.07);
+    margin-bottom:22px;
+    box-shadow:0 0 22px rgba(240,192,96,.15);
+}
+
+h1.title{
+    font-size:clamp(2rem,6.6vw,3.6rem);
+    font-weight:900;
+    letter-spacing:.06em;
+    background:linear-gradient(135deg,#fff 10%,#f0c060 45%,#f5576c 90%);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;
+    color:transparent;
+    filter:drop-shadow(0 0 28px rgba(240,192,96,.5));
+    margin-bottom:14px;
+    line-height:1.2;
+}
+
+.subtitle{
+    font-size:clamp(.82rem,2.4vw,1.02rem);
+    color:#a9a9c4;
+    letter-spacing:.22em;
+    text-shadow:0 2px 10px rgba(0,0,0,.7);
+}
+
+.meta-row{
+    display:flex;justify-content:center;gap:9px;flex-wrap:wrap;
+    margin-top:24px;
+}
+.meta-chip{
+    font-size:.72rem;
+    padding:5px 14px;
+    border-radius:100px;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.13);
+    color:#c8c8de;
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+}
+.meta-chip b{color:var(--gold);font-weight:800;}
+
+/* ============ 通用区块标题 ============ */
+.section-title{
+    text-align:center;
+    font-size:clamp(1.05rem,3.4vw,1.45rem);
+    font-weight:800;
+    letter-spacing:.16em;
+    margin:52px 0 8px;
+    text-shadow:0 2px 14px rgba(0,0,0,.7);
+}
+.section-title::after{
+    content:'';
+    display:block;
+    width:56px;height:3px;margin:12px auto 0;
+    border-radius:3px;
+    background:linear-gradient(90deg,var(--gold),var(--pink));
+    box-shadow:0 0 14px rgba(240,192,96,.6);
+}
+.section-desc{
+    text-align:center;
+    color:#9a9ab5;
+    font-size:.84rem;
+    margin-bottom:28px;
+    letter-spacing:.05em;
+}
+
+/* ============ 下载卡片（仅安卓） ============ */
+.download-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:20px;
+    margin-top:8px;
+}
+
+.dl-card{
+    position:relative;
+    border-radius:20px;
+    padding:26px 24px 22px;
+    background:linear-gradient(160deg,rgba(30,30,54,.82),rgba(16,16,32,.9));
+    border:2px solid rgba(255,255,255,.1);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    transition:transform .32s cubic-bezier(.2,.8,.3,1),border-color .3s,box-shadow .3s;
+    overflow:hidden;
+    opacity:0;transform:translateY(26px);
+}
+.dl-card.in{opacity:1;transform:translateY(0);}
+.dl-card::before{
+    content:'';
+    position:absolute;top:0;left:0;right:0;height:4px;
+    background:linear-gradient(90deg,var(--c1),var(--c2));
+    box-shadow:0 0 18px var(--c1);
+}
+.dl-card:hover{
+    transform:translateY(-6px);
+    border-color:var(--c1);
+    box-shadow:0 20px 46px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06);
+}
+.dl-card.android{--c1:#3ddc84;--c2:#0f9d58;}
+
+.dl-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+.dl-icon{
+    width:58px;height:58px;flex:0 0 58px;
+    border-radius:16px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.9rem;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.13);
+    box-shadow:inset 0 0 20px rgba(255,255,255,.05);
+}
+.dl-name{font-size:1.15rem;font-weight:800;letter-spacing:.04em;}
+.dl-file{
+    font-size:.7rem;color:#8a8aa8;
+    font-family:ui-monospace,Consolas,monospace;
+    margin-top:3px;
+    word-break:break-all;
+}
+.dl-desc{
+    font-size:.82rem;color:#a3a3be;
+    min-height:42px;margin-bottom:16px;
+    line-height:1.7;
+}
+.dl-btn{
+    display:block;width:100%;
+    padding:14px;
+    border:none;border-radius:14px;
+    font-size:1rem;font-weight:800;letter-spacing:.1em;
+    color:#fff;cursor:pointer;
+    text-decoration:none;text-align:center;
+    background:linear-gradient(135deg,var(--c1),var(--c2));
+    box-shadow:0 8px 24px rgba(0,0,0,.45);
+    transition:transform .18s,box-shadow .18s,filter .18s;
+    position:relative;overflow:hidden;
+}
+.dl-btn::after{
+    content:'';position:absolute;top:0;left:-120%;
+    width:100%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+    transition:left .6s;
+}
+.dl-btn:hover::after{left:120%;}
+.dl-btn:hover{filter:brightness(1.1);box-shadow:0 12px 32px rgba(0,0,0,.55);}
+.dl-btn:active{transform:scale(.97);}
+
+.dl-note{
+    margin-top:11px;font-size:.7rem;color:#7f7f9c;text-align:center;
+}
+.dl-note span{color:var(--gold);}
+
+/* 推荐角标 */
+.reco{
+    position:absolute;top:14px;right:14px;
+    font-size:.62rem;font-weight:800;letter-spacing:.12em;
+    padding:4px 10px;border-radius:100px;
+    background:linear-gradient(135deg,var(--gold),#e8a030);
+    color:#241a05;
+    display:none;
+    box-shadow:0 4px 14px rgba(240,192,96,.5);
+}
+.dl-card.recommended .reco{display:inline-block;}
+.dl-card.recommended{
+    border-color:var(--c1);
+    box-shadow:0 0 0 1px var(--c1),0 16px 40px rgba(0,0,0,.5);
+}
+
+/* ============ 试玩区 ============ */
+.play-section{
+    margin-top:38px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:16px;
+}
+
+.play-hint{
+    font-size:.76rem;
+    color:#9a9ab5;
+    letter-spacing:.15em;
+    text-align:center;
+}
+
+.play-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+    padding:18px 54px;
+    font-size:1.15rem;
+    font-weight:900;
+    letter-spacing:.18em;
+    color:#fff;
+    text-decoration:none;
+    border-radius:50px;
+    background:linear-gradient(135deg,#4ecdc4,#2ecc71 55%,#f0c060 130%);
+    box-shadow:
+        0 10px 34px rgba(78,205,196,.45),
+        0 0 60px rgba(78,205,196,.25),
+        inset 0 1px 0 rgba(255,255,255,.35);
+    position:relative;
+    overflow:hidden;
+    transition:transform .22s cubic-bezier(.2,.8,.3,1),box-shadow .22s,filter .22s;
+    cursor:pointer;
+    border:none;
+    font-family:inherit;
+}
+.play-btn::after{
+    content:'';
+    position:absolute;
+    top:0;left:-120%;
+    width:100%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);
+    transition:left .7s;
+}
+.play-btn:hover::after{left:120%;}
+.play-btn:hover{
+    transform:translateY(-3px) scale(1.02);
+    filter:brightness(1.06);
+    box-shadow:
+        0 16px 44px rgba(78,205,196,.55),
+        0 0 80px rgba(78,205,196,.35),
+        inset 0 1px 0 rgba(255,255,255,.4);
+}
+.play-btn:active{transform:scale(.97);}
+.play-btn .play-icon{
+    font-size:1.3rem;
+    filter:drop-shadow(0 0 6px rgba(255,255,255,.6));
+}
+
+/* 呼吸光环 */
+.play-btn::before{
+    content:'';
+    position:absolute;
+    inset:-3px;
+    border-radius:50px;
+    background:linear-gradient(135deg,#4ecdc4,#f0c060);
+    opacity:.35;
+    filter:blur(14px);
+    z-index:-1;
+    animation:pulseGlow 2.4s ease-in-out infinite;
+}
+@keyframes pulseGlow{
+    0%,100%{opacity:.3;transform:scale(1);}
+    50%{opacity:.55;transform:scale(1.05);}
+}
+
+/* ============ 提示条 ============ */
+.tip{
+    margin-top:34px;
+    background:rgba(240,192,96,.07);
+    border:1px dashed rgba(240,192,96,.35);
+    border-radius:14px;
+    padding:16px 20px;
+    font-size:.78rem;
+    color:#c9c9dd;
+    line-height:1.9;
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+}
+.tip b{color:var(--gold);}
+
+/* ============ 功能特性 ============ */
+.features{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:15px;
+    margin-top:8px;
+}
+.feat{
+    background:rgba(20,20,38,.68);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:16px;
+    padding:20px 18px;
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+    transition:background .25s,transform .25s,border-color .25s,box-shadow .25s;
+    opacity:0;transform:translateY(22px);
+}
+.feat.in{opacity:1;transform:translateY(0);}
+.feat:hover{
+    background:rgba(30,30,54,.82);
+    border-color:rgba(240,192,96,.45);
+    transform:translateY(-4px);
+    box-shadow:0 14px 34px rgba(0,0,0,.45);
+}
+.feat-icon{
+    font-size:1.7rem;display:block;margin-bottom:10px;
+    filter:drop-shadow(0 0 10px rgba(240,192,96,.3));
+}
+.feat h4{
+    font-size:.96rem;margin-bottom:6px;
+    color:#fff;letter-spacing:.04em;
+}
+.feat p{font-size:.77rem;color:#9c9cb8;line-height:1.75;}
+
+/* ============ 游戏列表 ============ */
+.games{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(138px,1fr));
+    gap:11px;
+    margin-top:8px;
+}
+.game-pill{
+    display:flex;align-items:center;gap:10px;
+    padding:14px 16px;
+    border-radius:14px;
+    background:rgba(24,24,44,.78);
+    border:1px solid rgba(255,255,255,.1);
+    font-size:.86rem;font-weight:600;
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    transition:border-color .25s,transform .25s,background .25s,box-shadow .25s;
+    opacity:0;transform:translateY(18px);
+}
+.game-pill.in{opacity:1;transform:translateY(0);}
+.game-pill:hover{
+    border-color:var(--accent);
+    background:rgba(78,205,196,.14);
+    transform:translateX(4px);
+    box-shadow:0 8px 22px rgba(0,0,0,.4);
+}
+.game-pill .gi{font-size:1.25rem;}
+
+/* ============ 安装说明 ============ */
+.steps{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:17px;
+    margin-top:8px;
+}
+.step-box{
+    background:rgba(20,20,38,.7);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:16px;
+    padding:22px 20px;
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+    opacity:0;transform:translateY(22px);
+    transition:border-color .25s,box-shadow .25s;
+}
+.step-box.in{opacity:1;transform:translateY(0);}
+.step-box:hover{
+    border-color:rgba(78,205,196,.4);
+    box-shadow:0 12px 30px rgba(0,0,0,.42);
+}
+.step-box h4{
+    font-size:.98rem;margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;color:#fff;
+}
+.step-box ol{margin-left:18px;font-size:.79rem;color:#a5a5c0;}
+.step-box li{margin-bottom:9px;line-height:1.75;}
+.step-box li::marker{color:var(--gold);font-weight:700;}
+
+/* ============ 页脚 ============ */
+footer{
+    text-align:center;
+    margin-top:58px;
+    padding-top:26px;
+    border-top:1px solid rgba(255,255,255,.09);
+    font-size:.74rem;
+    color:#72728f;
+    line-height:2.1;
+    text-shadow:0 2px 8px rgba(0,0,0,.8);
+}
+footer b{color:var(--gold);}
+
+/* ============ 滚动出现动画 ============ */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.3,1);}
+.reveal.in{opacity:1;transform:none;}
+
+/* ============ 移动端适配 ============ */
+@media (max-width:520px){
+    header{padding:46px 0 24px;}
+    .wrap{padding:0 16px 54px;}
+    .dl-card{padding:24px 20px 20px;}
+    .play-btn{padding:16px 40px;font-size:1.02rem;letter-spacing:.14em;}
+    .play-hint{font-size:.7rem;}
+}
+@media (max-width:360px){
+    .play-btn{padding:14px 32px;font-size:.94rem;gap:9px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 动态背景 bg.html ============ -->
+<div id="bg-layer">
+    <iframe src="bg.html" scrolling="no" frameborder="0" allow="autoplay"></iframe>
+</div>
+<div id="bg-overlay"></div>
+
+<div class="wrap">
+
+    <!-- ============ 头部 ============ -->
+    <header>
+        <div class="logo-badge">WANFEN GAMES · 4.0</div>
+        <h1 class="title">婉芬游戏大挑战</h1>
+        <p class="subtitle">七合一休闲游戏合集 · 全新版本</p>
+        <div class="meta-row">
+            <div class="meta-chip">版本 <b>4.0</b></div>
+            <div class="meta-chip">作者 <b>关烨</b></div>
+            <div class="meta-chip">类型 <b>休闲益智</b></div>
+            <div class="meta-chip">平台 <b>Android / Web</b></div>
+        </div>
+    </header>
+
+    <!-- ============ 主程序下载（仅保留安卓） ============ -->
+    <h2 class="section-title reveal">主 程 序 下 载</h2>
+    <p class="section-desc reveal">安卓设备点击下载，或直接前往网页试玩</p>
+
+    <div class="download-grid">
+        <!-- 安卓（唯一保留的下载卡片） -->
+        <div class="dl-card android" id="card-android">
+            <span class="reco">推荐</span>
+            <div class="dl-head">
+                <div class="dl-icon">🤖</div>
+                <div>
+                    <div class="dl-name">Android 版</div>
+                    <div class="dl-file">wftx.apk</div>
+                </div>
+            </div>
+            <p class="dl-desc">
+                适配安卓手机与平板，横屏操作体验更佳。支持触屏手势、虚拟按键与离线游玩。
+            </p>
+            <a class="dl-btn" href="wftx.apk" download>⬇ 下载 APK</a>
+            <div class="dl-note">需 Android 7.0 及以上 · 约 <span>—</span></div>
+        </div>
+    </div>
+
+    <div class="tip reveal">
+        💡 <b>安装提示：
+        若浏览器提示"文件可能有害"，请选择"保留"；安卓安装时若提示"未知来源"，请在系统设置中允许安装。
+    </div>
+
+    <!-- ============ 立即试玩 ============ -->
+    <div class="play-section reveal">
+        <div class="play-hint">不想下载？直接在浏览器里玩</div>
+        <a class="play-btn" href="sw.html">
+            <span class="play-icon">▶</span>
+            <span>立 即 试 玩</span>
+        </a>
+    </div>
+
+    <!-- ============ 游戏介绍 ============ -->
+    <h2 class="section-title reveal">游 戏 介 绍</h2>
+    <p class="section-desc reveal">一个游戏大厅，七种玩法，越玩越上瘾</p>
+
+    <div class="features">
+        <div class="feat reveal">
+            <span class="feat-icon">🎮</span>
+            <h4>七合一游戏大厅</h4>
+            <p>2048、五子棋、井字棋、贪吃蛇、扫雷、像素跳跃、记忆翻牌，一款软件全部拥有。</p>
+        </div>
+        <div class="feat reveal">
+            <span class="feat-icon">💰</span>
+            <h4>金币与道具商店</h4>
+            <p>游戏中可获得金币，在商店兑换水果礼包、无敌盾、扫雷透视、五子棋禁下等实用道具。</p>
+        </div>
+        <div class="feat reveal">
+            <span class="feat-icon">💬</span>
+            <h4>婉芬助手陪伴</h4>
+            <p>可爱的 NPC「婉芬」会在你思考时插话、在你卡关时"帮忙"，让单人游戏也不孤单。</p>
+        </div>
+        <div class="feat reveal">
+            <span class="feat-icon">🌐</span>
+            <h4>实时联机对战</h4>
+            <p>贪吃蛇与五子棋均支持房间号联机，和朋友随时随地开一局。</p>
+        </div>
+        <div class="feat reveal">
+            <span class="feat-icon">🎵</span>
+            <h4>随机背景音乐</h4>
+            <p>内置多首 BGM，采用洗牌式伪随机播放，同一轮内不重复，音乐与音效均可单独开关。</p>
+        </div>
+        <div class="feat reveal">
+            <span class="feat-icon">🖼️</span>
+            <h4>可换背景壁纸</h4>
+            <p>支持纯图片与动态壁纸两种模式，一键切换，打造属于自己的游戏大厅氛围。</p>
+        </div>
+    </div>
+
+    <!-- ============ 内含游戏 ============ -->
+    <h2 class="section-title reveal">内 含 游 戏</h2>
+    <p class="section-desc reveal">点击大厅中的卡片即可开始</p>
+
+    <div class="games">
+        <div class="game-pill reveal"><span class="gi">🔢</span>2048</div>
+        <div class="game-pill reveal"><span class="gi">♟️</span>五子棋</div>
+        <div class="game-pill reveal"><span class="gi">⭕</span>井字棋</div>
+        <div class="game-pill reveal"><span class="gi">🐍</span>贪吃蛇</div>
+        <div class="game-pill reveal"><span class="gi">💣</span>扫雷</div>
+        <div class="game-pill reveal"><span class="gi">🏃</span>像素跳跃</div>
+        <div class="game-pill reveal"><span class="gi">🧠</span>记忆翻牌</div>
+    </div>
+
+    <!-- ============ 安装说明（仅保留安卓） ============ -->
+    <h2 class="section-title reveal">安 装 说 明</h2>
+    <p class="section-desc reveal">两步搞定，马上开玩</p>
+
+    <div class="steps">
+        <div class="step-box reveal">
+            <h4>🤖 安卓安装步骤</h4>
+            <ol>
+                <li>点击上方按钮下载 <b>wftx.apk</b></li>
+                <li>在文件管理器中找到该安装包</li>
+                <li>点击安装，若提示"未知来源"请前往「设置 → 安全 → 允许安装未知应用」开启权限</li>
+                <li>安装完成后打开 App，<b>请横屏使用</b></li>
+            </ol>
+        </div>
+    </div>
+
+    <footer>
+        <div>🎮 <b>婉芬游戏大挑战</b> · 版本 4.0</div>
+        <div>作者：<b>关烨</b></div>
+        <div style="margin-top:8px;opacity:.75;">本游戏为个人兴趣作品，仅供学习交流使用</div>
+    </footer>
+
+</div>
+
+<script>
+/* ============ 平台识别，高亮推荐（仅安卓卡片） ============ */
+(function(){
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua);
+    document.querySelectorAll('.dl-card').forEach(c => c.classList.remove('recommended'));
+    if (isAndroid) {
+        document.getElementById('card-android').classList.add('recommended');
+    } else {
+        // 非安卓也建议下载安卓版（web试玩可用）
+        document.getElementById('card-android').classList.add('recommended');
+    }
+})();
+
+/* ============ 滚动出现动画（含初始卡片） ============ */
+(function(){
+    const allAnimated = document.querySelectorAll('.reveal, .dl-card');
+    if (!('IntersectionObserver' in window)) {
+        allAnimated.forEach(e => e.classList.add('in'));
+        return;
+    }
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry, i) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => entry.target.classList.add('in'), i * 65);
+                io.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -36px 0px' });
+    allAnimated.forEach(e => io.observe(e));
+
+    // 首屏卡片立刻显示，避免空白
+    setTimeout(() => {
+        document.querySelectorAll('.dl-card').forEach(c => c.classList.add('in'));
+    }, 120);
+})();
+
+/* ============ 下载日志（调试用） ============ */
+document.querySelectorAll('a[download]').forEach(a => {
+    a.addEventListener('click', function(){
+        console.log('开始下载：' + this.getAttribute('href'));
+    });
+});
+
+/* ============ 试玩日志 ============ */
+const playBtn = document.querySelector('.play-btn');
+if (playBtn) {
+    playBtn.addEventListener('click', function(){
+        console.log('跳转试玩：sw.html');
+    });
+}
+</script>
+</body>
+</html>
