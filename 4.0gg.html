@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公告栏</title>
+<style>
+  /* ===== 基础设置 ===== */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: #ffffff;
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    padding: 20px;
+    color: #333;
+  }
+
+  /* ===== 公告栏外框 ===== */
+  .notice-board {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  /* ===== 顶部标题：公告栏三个字 ===== */
+  .board-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 16px;
+    letter-spacing: 2px;
+  }
+
+  /* ===== 公告内容：一整行长文字 ===== */
+  .notice-content {
+    font-size: 15px;
+    line-height: 1.9;
+    color: #444;
+    word-break: break-word;
+  }
+
+  /* ===== 小屏幕适配 ===== */
+  @media (max-width: 480px) {
+    body { padding: 14px; }
+    .board-title { font-size: 20px; margin-bottom: 12px; }
+    .notice-content { font-size: 14px; line-height: 1.8; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="notice-board">
+
+    <!-- 标题 -->
+    <div class="board-title">公告栏</div>
+
+    <!-- 公告内容（一整行长文字） -->
+    <div class="notice-content">
+      这是一个普普通通的公告页面，当然这个4.0也是一次十分庞大的更新，本次4.0更新了贪吃蛇还有五子棋当然他们不是其他游戏，而是靠神秘AI制作，后续我会翻新所有游戏。国庆节快乐！
+    </div>
+
+  </div>
+
+</body>
+</html>
